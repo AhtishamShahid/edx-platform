@@ -142,6 +142,9 @@ class Permission(models.Model):
     def __unicode__(self):
         return self.name
 
+    def __str__(self):
+        return self.name
+
 
 def permission_blacked_out(course, role_names, permission_name):
     """
