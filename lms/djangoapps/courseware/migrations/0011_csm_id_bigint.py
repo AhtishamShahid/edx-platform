@@ -4,17 +4,14 @@ from __future__ import unicode_literals
 
 import courseware.fields
 from django.db import migrations
+from django.db.migrations import AlterField
 
-def forwards(apps, schema_editor):
-    # Only run if we're connected to the student_module_history db
-    if schema_editor.connection.alias != 'student_module_history':
-        return
-
-    migrations.AlterField(
-        model_name='studentmodule',
-        name='id',
-        field=courseware.fields.UnsignedBigIntAutoField(primary_key=True, serialize=False),
-    )
+class CsmBigInt(AlterField):
+    def database_forwards(self, app_label, schema_editor, from_state, to_state):
+        if schema_editor.connection.alias == 'student_module_history':
+            schema_editor.execute("ALTER TABLE `courseware_studentmodule` MODIFY `id` bigint UNSIGNED AUTO_INCREMENT NOT NULL;")
+        else:
+            schema_editor.execute("ALTER TABLE `courseware_studentmodulehistory` MODIFY `student_module_id` bigint UNSIGNED NOT NULL;")
 
 class Migration(migrations.Migration):
 
@@ -23,5 +20,9 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(forwards, reverse_code=migrations.RunPython.noop),
+        CsmBigInt(
+            model_name='studentmodule',
+            name='id',
+            field=courseware.fields.UnsignedBigIntAutoField(primary_key=True, serialize=False),
+        )
     ]
