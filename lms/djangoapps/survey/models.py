@@ -38,6 +38,9 @@ class SurveyForm(TimeStampedModel):
     def __unicode__(self):
         return self.name
 
+    def __str__(self):
+        return self.name
+
     def save(self, *args, **kwargs):
         """
         Override save method so we can validate that the form HTML is
