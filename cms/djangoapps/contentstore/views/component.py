@@ -131,7 +131,8 @@ def container_handler(request, usage_key_string):
 
             assert unit is not None, "Could not determine unit page"
             subsection = get_parent_xblock(unit)
-            assert subsection is not None, "Could not determine parent subsection from unit " + six.text_type(unit.location)
+            assert subsection is not None, "Could not determine parent subsection from unit " + six.text_type(
+                unit.location)
             section = get_parent_xblock(subsection)
             assert section is not None, "Could not determine ancestor section from unit " + six.text_type(unit.location)
 
