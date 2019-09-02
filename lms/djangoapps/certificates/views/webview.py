@@ -58,7 +58,6 @@ from util.views import handle_500
 log = logging.getLogger(__name__)
 _ = translation.ugettext
 
-
 INVALID_CERTIFICATE_TEMPLATE_PATH = 'certificates/invalid.html'
 
 
@@ -153,11 +152,14 @@ def _update_certificate_context(context, course, user_certificate, platform_name
     )
 
 
-def _update_context_with_basic_info(context, course_id, platform_name, configuration):
+def _update_context_with_basic_info(context, course_id, platform_name, configuration, is_secure=False):
     """
     Updates context dictionary with basic info required before rendering simplest
     certificate templates.
     """
+    context.update(get_certificate_header_context(is_secure=is_secure))
+    context.update(get_certificate_footer_context())
+
     context['platform_name'] = platform_name
     context['course_id'] = course_id
 
@@ -170,6 +172,7 @@ def _update_context_with_basic_info(context, course_id, platform_name, configura
         year=datetime.now(pytz.timezone(settings.TIME_ZONE)).year,
         platform_name=platform_name,
         reserved=reserved
+
     )
 
     # Translators:  This text is bound to the HTML 'title' element of the page and appears
@@ -436,7 +439,7 @@ def _update_organization_context(context, course):
     partner_short_name = course.display_organization if course.display_organization else course.org
     organizations = organization_api.get_course_organizations(course_id=course.id)
     if organizations:
-        #TODO Need to add support for multiple organizations, Currently we are interested in the first one.
+        # TODO Need to add support for multiple organizations, Currently we are interested in the first one.
         organization = organizations[0]
         partner_long_name = organization.get('name', partner_long_name)
         partner_short_name = organization.get('short_name', partner_short_name)
@@ -480,9 +483,11 @@ def render_html_view(request, user_id, course_id):
     platform_name = configuration_helpers.get_value("platform_name", settings.PLATFORM_NAME)
     configuration = CertificateHtmlViewConfiguration.get_config()
 
+    context = {}
+    _update_context_with_basic_info(context, course_id, platform_name, configuration, is_secure=request.is_secure())
     # Kick the user back to the "Invalid" screen if the feature is disabled globally
     if not settings.FEATURES.get('CERTIFICATES_HTML_VIEW', False):
-        return _render_invalid_certificate(course_id, platform_name, configuration)
+        return _render_invalid_certificate(context)
 
     # Load the course and user objects
     try:
@@ -497,7 +502,7 @@ def render_html_view(request, user_id, course_id):
             u"%d. Specific error: %s"
         )
         log.info(error_str, course_id, user_id, str(exception))
-        return _render_invalid_certificate(course_id, platform_name, configuration)
+        return _render_invalid_certificate(context)
 
     # Kick the user back to the "Invalid" screen if the feature is disabled for the course
     if not course.cert_html_view_enabled:
@@ -506,7 +511,7 @@ def render_html_view(request, user_id, course_id):
             course_id,
             user_id,
         )
-        return _render_invalid_certificate(course_id, platform_name, configuration)
+        return _render_invalid_certificate(context)
 
     # Load user's certificate
     user_certificate = _get_user_certificate(request, user, course_key, course, preview_mode)
@@ -516,7 +521,7 @@ def render_html_view(request, user_id, course_id):
             user_id,
             course_id,
         )
-        return _render_invalid_certificate(course_id, platform_name, configuration)
+        return _render_invalid_certificate(context)
 
     # Get the active certificate configuration for this course
     # If we do not have an active certificate, we'll need to send the user to the "Invalid" screen
@@ -528,7 +533,7 @@ def render_html_view(request, user_id, course_id):
             course_id,
             user_id,
         )
-        return _render_invalid_certificate(course_id, platform_name, configuration)
+        return _render_invalid_certificate(context)
 
     # Get data from Discovery service that will be necessary for rendering this Certificate.
     catalog_data = _get_catalog_data_for_course(course_key)
@@ -560,7 +565,7 @@ def render_html_view(request, user_id, course_id):
     with translation.override(certificate_language):
         context = {'user_language': user_language}
 
-        _update_context_with_basic_info(context, course_id, platform_name, configuration)
+        # _update_context_with_basic_info(context, course_id, platform_name, configuration)
 
         context['certificate_data'] = active_configuration
 
@@ -588,9 +593,9 @@ def render_html_view(request, user_id, course_id):
         # Append badge info
         _update_badge_context(context, course, user)
 
-        # Add certificate header/footer data to current context
-        context.update(get_certificate_header_context(is_secure=request.is_secure()))
-        context.update(get_certificate_footer_context())
+        # # Add certificate header/footer data to current context
+        # context.update(get_certificate_header_context(is_secure=request.is_secure()))
+        # context.update(get_certificate_footer_context())
 
         # Append/Override the existing view context values with any course-specific static values from Advanced Settings
         context.update(course.cert_html_view_overrides)
@@ -658,9 +663,7 @@ def _get_custom_template_and_language(course_id, course_mode, course_language):
         return (None, None)
 
 
-def _render_invalid_certificate(course_id, platform_name, configuration):
-    context = {}
-    _update_context_with_basic_info(context, course_id, platform_name, configuration)
+def _render_invalid_certificate(context):
     return render_to_response(INVALID_CERTIFICATE_TEMPLATE_PATH, context)
 
 
