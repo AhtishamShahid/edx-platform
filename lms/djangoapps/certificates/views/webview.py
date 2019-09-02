@@ -172,7 +172,6 @@ def _update_context_with_basic_info(context, course_id, platform_name, configura
         year=datetime.now(pytz.timezone(settings.TIME_ZONE)).year,
         platform_name=platform_name,
         reserved=reserved
-
     )
 
     # Translators:  This text is bound to the HTML 'title' element of the page and appears
@@ -592,10 +591,6 @@ def render_html_view(request, user_id, course_id):
 
         # Append badge info
         _update_badge_context(context, course, user)
-
-        # # Add certificate header/footer data to current context
-        # context.update(get_certificate_header_context(is_secure=request.is_secure()))
-        # context.update(get_certificate_footer_context())
 
         # Append/Override the existing view context values with any course-specific static values from Advanced Settings
         context.update(course.cert_html_view_overrides)
