@@ -3,11 +3,14 @@ Acceptance tests for HTML component in studio
 """
 from __future__ import absolute_import
 
+import time
+
 from common.test.acceptance.fixtures.course import XBlockFixtureDesc
 from common.test.acceptance.pages.studio.container import ContainerPage, XBlockWrapper
 from common.test.acceptance.pages.studio.html_component_editor import HTMLEditorIframe, HtmlXBlockEditorView
 from common.test.acceptance.pages.studio.utils import add_component, type_in_codemirror
 from common.test.acceptance.tests.studio.base_studio_test import ContainerBase
+from path import Path
 
 
 class HTMLComponentEditorTests(ContainerBase):
@@ -365,3 +368,27 @@ class HTMLComponentEditorTests(ContainerBase):
         }
         self.html_editor.open_font_dropdown()
         self.assertDictContainsSubset(EXPECTED_FONTS, self.html_editor.font_dict())
+
+    def test_image_modal(self):
+        """
+        Scenario:
+        Add image in tiny mce text editor and save ,
+        Edit the component again
+        Add image in tiny mce text editor and save it again ,
+        """
+
+        self._add_component('Text')
+        self.container_page.edit()
+        self.html_editor.open_image_modal()
+        self.html_editor.upload_image()
+
+        # add second image
+        self.container_page.edit()
+        self.html_editor.open_image_modal()
+        self.html_editor.upload_image()
+
+        self.container_page.edit()
+        self.html_editor.open_raw_editor()
+        editor_value = self.html_editor.editor_value
+        number_of_images = editor_value.count(u'img')
+        self.assertEqual(2, number_of_images)

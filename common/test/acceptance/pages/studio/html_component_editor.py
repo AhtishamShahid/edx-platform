@@ -3,11 +3,14 @@ HTML component editor in studio
 """
 from __future__ import absolute_import
 
+import time
+
 from six.moves import zip
 
 from common.test.acceptance.pages.common.utils import click_css
 from common.test.acceptance.pages.studio.utils import get_codemirror_value, type_in_codemirror
 from common.test.acceptance.pages.studio.xblock_editor import XBlockEditorView
+from path import Path
 
 
 class HtmlXBlockEditorView(XBlockEditorView):
@@ -237,6 +240,34 @@ class HtmlXBlockEditorView(XBlockEditorView):
         Click save button
         """
         click_css(self, '.action-save')
+
+    def open_image_modal(self):
+        """
+        Clicks and waits for font dropdown to open
+        """
+        self.q(css='[aria-label="Insert/Edit Image"]').click()
+
+    def upload_image(self):
+        """
+        Clicks and waits for font dropdown to open
+        """
+        UPLOAD_SUFFIX = '/data/uploads/studio-uploads/'
+        UPLOAD_FILE_DIR = Path(__file__).abspath().dirname().dirname().dirname().dirname() + UPLOAD_SUFFIX
+
+        file_input_css = "[type='file']"
+        file_name = u'file-0.png'
+
+        self.browser.execute_script('$("{}").css("display","block");'.format(file_input_css))
+        self.wait_for_element_visibility(file_input_css, "Input is visible")
+        self.q(css=file_input_css).results[0].send_keys(UPLOAD_FILE_DIR + file_name)
+        self.wait_for_element_visibility(
+            '#imageDescription', 'Upload form is visible.')
+
+        self.q(css='#imageDescription').results[0].send_keys('test image')
+        self.q(css='.btn-primary').first.click()
+
+        self.save_content()
+        self.wait_for_ajax()
 
 
 class HTMLEditorIframe(XBlockEditorView):

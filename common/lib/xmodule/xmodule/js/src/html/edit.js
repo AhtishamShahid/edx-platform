@@ -1229,7 +1229,7 @@
       ed.on('SaveCodeEditor', this.saveCodeEditor);
 
       this.imageModal.on('closeModal', this.closeImageModal);
-      return this.imageModal.on('submitForm', this.editImageSubmit);
+      return this.imageModal.off('submitForm').on('submitForm', this.editImageSubmit);
     };
 
     HTMLEditingDescriptor.prototype.editImage = function(data) {
