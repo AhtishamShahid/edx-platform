@@ -3,6 +3,7 @@ Acceptance tests for HTML component in studio
 """
 from __future__ import absolute_import
 
+import pdb
 import time
 
 from common.test.acceptance.fixtures.course import XBlockFixtureDesc
@@ -376,16 +377,19 @@ class HTMLComponentEditorTests(ContainerBase):
         Edit the component again
         Add image in tiny mce text editor and save it again ,
         """
+        # File path for uploader
+        upload_suffix = '/data/uploads/studio-uploads/'
+        upload_file_dir = Path(__file__).abspath().dirname().dirname().dirname().dirname() + upload_suffix
+        file_names = [u'file-0.png', u'file-1.png']
 
         self._add_component('Text')
-        self.container_page.edit()
-        self.html_editor.open_image_modal()
-        self.html_editor.upload_image()
 
-        # add second image
-        self.container_page.edit()
-        self.html_editor.open_image_modal()
-        self.html_editor.upload_image()
+        for file_name in file_names:
+            self.container_page.edit()
+            self.html_editor.open_image_modal()
+            self.html_editor.upload_image(upload_file_dir + file_name)
+            self.html_editor.save_content()
+            self.html_editor.wait_for_ajax()
 
         self.container_page.edit()
         self.html_editor.open_raw_editor()

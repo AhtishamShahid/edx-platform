@@ -10,7 +10,6 @@ from six.moves import zip
 from common.test.acceptance.pages.common.utils import click_css
 from common.test.acceptance.pages.studio.utils import get_codemirror_value, type_in_codemirror
 from common.test.acceptance.pages.studio.xblock_editor import XBlockEditorView
-from path import Path
 
 
 class HtmlXBlockEditorView(XBlockEditorView):
@@ -243,31 +242,29 @@ class HtmlXBlockEditorView(XBlockEditorView):
 
     def open_image_modal(self):
         """
-        Clicks and waits for font dropdown to open
+        Clicks and in insert image button
         """
         self.q(css='[aria-label="Insert/Edit Image"]').click()
 
-    def upload_image(self):
+    def upload_image(self, file_name):
         """
-        Clicks and waits for font dropdown to open
+         Uploads image,description and click save to add image in tiny mce editor
         """
-        UPLOAD_SUFFIX = '/data/uploads/studio-uploads/'
-        UPLOAD_FILE_DIR = Path(__file__).abspath().dirname().dirname().dirname().dirname() + UPLOAD_SUFFIX
 
+        # css selector for file uploader
         file_input_css = "[type='file']"
-        file_name = u'file-0.png'
 
+        # select and change visibility and change value of file input
         self.browser.execute_script('$("{}").css("display","block");'.format(file_input_css))
         self.wait_for_element_visibility(file_input_css, "Input is visible")
-        self.q(css=file_input_css).results[0].send_keys(UPLOAD_FILE_DIR + file_name)
-        self.wait_for_element_visibility(
-            '#imageDescription', 'Upload form is visible.')
+        self.q(css=file_input_css).results[0].send_keys(file_name)
+        self.wait_for_element_visibility('#imageDescription', 'Upload form is visible.')
 
+        # add value in description field.
         self.q(css='#imageDescription').results[0].send_keys('test image')
-        self.q(css='.btn-primary').first.click()
 
-        self.save_content()
-        self.wait_for_ajax()
+        # click on insert image button
+        self.q(css='.btn-primary').click()
 
 
 class HTMLEditorIframe(XBlockEditorView):
