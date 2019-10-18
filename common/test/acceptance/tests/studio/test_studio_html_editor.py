@@ -3,15 +3,16 @@ Acceptance tests for HTML component in studio
 """
 from __future__ import absolute_import
 
-import pdb
-import time
+import os
 
 from common.test.acceptance.fixtures.course import XBlockFixtureDesc
 from common.test.acceptance.pages.studio.container import ContainerPage, XBlockWrapper
 from common.test.acceptance.pages.studio.html_component_editor import HTMLEditorIframe, HtmlXBlockEditorView
 from common.test.acceptance.pages.studio.utils import add_component, type_in_codemirror
 from common.test.acceptance.tests.studio.base_studio_test import ContainerBase
-from path import Path
+
+upload_suffix = 'data/uploads/studio-uploads/'
+upload_file_dir = os.path.abspath(os.path.join(__file__, '../../../../', upload_suffix))
 
 
 class HTMLComponentEditorTests(ContainerBase):
@@ -378,8 +379,7 @@ class HTMLComponentEditorTests(ContainerBase):
         Add image in tiny mce text editor and save it again ,
         """
         # File path for uploader
-        upload_suffix = '/data/uploads/studio-uploads/'
-        upload_file_dir = Path(__file__).abspath().dirname().dirname().dirname().dirname() + upload_suffix
+
         file_names = [u'file-0.png', u'file-1.png']
 
         self._add_component('Text')
@@ -387,7 +387,7 @@ class HTMLComponentEditorTests(ContainerBase):
         for file_name in file_names:
             self.container_page.edit()
             self.html_editor.open_image_modal()
-            self.html_editor.upload_image(upload_file_dir + file_name)
+            self.html_editor.upload_image(os.path.join(upload_file_dir, file_name))
             self.html_editor.save_content()
             self.html_editor.wait_for_ajax()
 
