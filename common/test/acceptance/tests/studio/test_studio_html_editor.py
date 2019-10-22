@@ -1,3 +1,4 @@
+# coding=utf-8
 """
 Acceptance tests for HTML component in studio
 """
@@ -365,3 +366,30 @@ class HTMLComponentEditorTests(ContainerBase):
         }
         self.html_editor.open_font_dropdown()
         self.assertDictContainsSubset(EXPECTED_FONTS, self.html_editor.font_dict())
+
+
+def test_link_plugin_adds_foreign_language_character_properly(self):
+    """
+    Add link with special character
+    And test that it retains it original value
+    """
+    static_link = u'/static/asset-v1_Microsoft_MXS203_2019_C1_type_asset_block_Programación_Gas.pptx'
+
+    # Add HTML Text type component
+    self._add_component('Text')
+    self.container_page.edit()
+    self.html_editor.open_link_plugin()
+    self.html_editor.save_static_link(static_link)
+    self.html_editor.save_content()
+    self.html_editor.wait_for_ajax()
+
+    # open editor and open html editor
+    self.container_page.edit()
+    self.html_editor.open_raw_editor()
+
+    # compare saved url with given url
+    self.assertIn(
+        static_link,
+        self.html_editor.editor_value,
+        "URL in the link plugin is different"
+    )
