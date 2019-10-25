@@ -50,6 +50,7 @@
       this.saveImage = bind(this.saveImage, this);
       this.editImage = bind(this.editImage, this);
       this.setupTinyMCE = bind(this.setupTinyMCE, this);
+      this.cancelButton = bind(this.cancelButton, this);
       var tiny_mce_css_links;
       this.element = element;
       this.base_asset_url = this.element.find("#editor-tab").data('base-asset-url');
@@ -1227,9 +1228,10 @@
       ed.on('EditLink', this.editLink);
       ed.on('ShowCodeEditor', this.showCodeEditor);
       ed.on('SaveCodeEditor', this.saveCodeEditor);
+      $(".action-cancel").on('click', this.cancelButton)
 
       this.imageModal.on('closeModal', this.closeImageModal);
-      return this.imageModal.off('submitForm').on('submitForm', this.editImageSubmit);
+      return this.imageModal.on('submitForm', this.editImageSubmit);
     };
 
     HTMLEditingDescriptor.prototype.editImage = function(data) {
@@ -1378,10 +1380,23 @@
       if (text === void 0) {
         text = this.advanced_editor.getValue();
       }
+      this.unbindSubmitEventFromImageEditor()
       return {
         data: text
       };
     };
+
+    HTMLEditingDescriptor.prototype.cancelButton = function () {
+      this.unbindSubmitEventFromImageEditor()
+    };
+
+    HTMLEditingDescriptor.prototype.unbindSubmitEventFromImageEditor = function () {
+      /*
+      unbinds events on cancel button of image editor
+       */
+      this.imageModal.off('submitForm')
+    };
+
 
     return HTMLEditingDescriptor;
 
