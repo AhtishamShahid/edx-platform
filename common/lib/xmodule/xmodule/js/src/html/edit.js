@@ -1394,7 +1394,9 @@
       /*
       unbinds events on cancel button of image editor
        */
-      this.imageModal.off('submitForm')
+      if (this.imageModal) {
+        this.imageModal.off('submitForm')
+      }
     };
 
 
