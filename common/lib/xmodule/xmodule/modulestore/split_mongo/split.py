@@ -755,7 +755,7 @@ class SplitMongoModuleStore(SplitBulkWriteMixin, ModuleStoreWriteBase):
         """
         Returns the wire version for mongo. Only used to unit tests which instrument the connection.
         """
-        return self.db_connection.mongo_wire_version
+        return self.db_connection.mongo_wire_version()
 
     def _drop_database(self, database=True, collections=True, connections=True):
         """
@@ -1553,7 +1553,7 @@ class SplitMongoModuleStore(SplitBulkWriteMixin, ModuleStoreWriteBase):
             next_versions = [struct for struct in next_entries]
             for course_structure in next_versions:
                 result.setdefault(course_structure['previous_version'], []).append(
-                    CourseLocator(version_guid=struct['_id']))
+                    CourseLocator(version_guid=next_entries[-1]['_id']))
         return VersionTree(course_locator, result)
 
     def get_block_generations(self, block_locator):
@@ -2597,7 +2597,7 @@ class SplitMongoModuleStore(SplitBulkWriteMixin, ModuleStoreWriteBase):
                 block_key.id,
                 new_parent_block_key.id,
             )
-            new_block_id = hashlib.sha1(unique_data).hexdigest()[:20]
+            new_block_id = hashlib.sha1(unique_data.encode('utf-8')).hexdigest()[:20]
             new_block_key = BlockKey(block_key.type, new_block_id)
 
             # Now clone block_key to new_block_key:

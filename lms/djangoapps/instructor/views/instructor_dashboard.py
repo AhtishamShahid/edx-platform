@@ -7,6 +7,7 @@ from __future__ import absolute_import
 import datetime
 import logging
 import uuid
+from functools import reduce  # pylint: disable=redefined-builtin
 
 import pytz
 import six
@@ -32,8 +33,6 @@ from xblock.fields import ScopeIds
 from bulk_email.api import is_bulk_email_feature_enabled
 from class_dashboard.dashboard_data import get_array_section_has_problem, get_section_display_name
 from course_modes.models import CourseMode, CourseModesArchive
-from courseware.access import has_access
-from courseware.courses import get_course_by_id, get_studio_url
 from edxmako.shortcuts import render_to_response
 from lms.djangoapps.certificates import api as certs_api
 from lms.djangoapps.certificates.models import (
@@ -44,6 +43,8 @@ from lms.djangoapps.certificates.models import (
     CertificateWhitelist,
     GeneratedCertificate
 )
+from lms.djangoapps.courseware.access import has_access
+from lms.djangoapps.courseware.courses import get_course_by_id, get_studio_url
 from lms.djangoapps.courseware.module_render import get_module_by_usage_id
 from lms.djangoapps.discussion.django_comment_client.utils import available_division_schemes, has_forum_access
 from lms.djangoapps.grades.api import is_writable_gradebook_enabled
@@ -140,7 +141,7 @@ def instructor_dashboard_2(request, course_id):
     if show_analytics_dashboard_message(course_key):
         # Construct a URL to the external analytics dashboard
         analytics_dashboard_url = '{0}/courses/{1}'.format(settings.ANALYTICS_DASHBOARD_URL, six.text_type(course_key))
-        link_start = HTML(u"<a href=\"{}\" target=\"_blank\">").format(analytics_dashboard_url)
+        link_start = HTML(u"<a href=\"{}\" rel=\"noopener\" target=\"_blank\">").format(analytics_dashboard_url)
         analytics_dashboard_message = _(
             u"To gain insights into student enrollment and participation {link_start}"
             u"visit {analytics_dashboard_name}, our new course analytics product{link_end}."
@@ -773,7 +774,7 @@ def _section_send_email(course, access):
 def _get_dashboard_link(course_key):
     """ Construct a URL to the external analytics dashboard """
     analytics_dashboard_url = u'{0}/courses/{1}'.format(settings.ANALYTICS_DASHBOARD_URL, six.text_type(course_key))
-    link = HTML(u"<a href=\"{0}\" target=\"_blank\">{1}</a>").format(
+    link = HTML(u"<a href=\"{0}\" rel=\"noopener\" target=\"_blank\">{1}</a>").format(
         analytics_dashboard_url, settings.ANALYTICS_DASHBOARD_NAME
     )
     return link

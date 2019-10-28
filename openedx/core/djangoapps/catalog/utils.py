@@ -119,9 +119,14 @@ def get_programs(site=None, uuid=None, uuids=None, course=None, organization=Non
             # without programs. After this is changed, log any cache misses here.
             return []
     elif site:
-        uuids = cache.get(SITE_PROGRAM_UUIDS_CACHE_KEY_TPL.format(domain=site.domain), [])
-        if not uuids:
-            logger.warning(u'Failed to get program UUIDs from the cache for site {}.'.format(site.domain))
+        site_config = getattr(site, 'configuration', None)
+        catalog_url = site_config.get_value('COURSE_CATALOG_API_URL') if site_config else None
+        if site_config and catalog_url:
+            uuids = cache.get(SITE_PROGRAM_UUIDS_CACHE_KEY_TPL.format(domain=site.domain), [])
+            if not uuids:
+                logger.warning(u'Failed to get program UUIDs from the cache for site {}.'.format(site.domain))
+        else:
+            uuids = []
     elif organization:
         uuids = get_programs_for_organization(organization)
         if not uuids:
@@ -571,6 +576,29 @@ def get_course_run_details(course_run_key, fields):
         course_run_details = get_edx_api_data(catalog_integration, 'course_runs', api, resource_id=course_run_key,
                                               cache_key=cache_key, many=False, traverse_pagination=False, fields=fields)
     return course_run_details
+
+
+def is_course_run_in_program(course_run_key, program):
+    """
+    Check if a course run is part of a program.
+
+    Arguments:
+        program (dict): program data, as returned by get_programs()
+        course_run_key (CourseKey|str)
+
+    Returns: bool
+        Whether the program exists AND the course run is part of it.
+    """
+    # Right now, this function simply loads all the program data from the cache,
+    # walks the structure to collect the set of course run keys,
+    # and then sees if `course_run_key` is in that set.
+    # If we need to optimize this later, we can.
+    course_run_key_str = (
+        str(course_run_key) if isinstance(course_run_key, CourseKey)
+        else course_run_key
+    )
+    course_run_keys = course_run_keys_for_program(program)
+    return course_run_key_str in course_run_keys
 
 
 def course_run_keys_for_program(parent_program):

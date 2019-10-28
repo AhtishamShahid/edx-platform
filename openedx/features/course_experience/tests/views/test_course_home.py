@@ -20,11 +20,12 @@ from waffle.testutils import override_flag
 
 from course_modes.models import CourseMode
 from course_modes.tests.factories import CourseModeFactory
-from courseware.tests.helpers import get_expiration_banner_text
+from lms.djangoapps.courseware.tests.helpers import get_expiration_banner_text
 from experiments.models import ExperimentData
 from lms.djangoapps.commerce.models import CommerceConfiguration
 from lms.djangoapps.commerce.utils import EcommerceService
 from lms.djangoapps.course_goals.api import add_course_goal, remove_course_goal
+from lms.djangoapps.courseware.date_summary import verified_upgrade_deadline_link
 from lms.djangoapps.courseware.tests.factories import (
     BetaTesterFactory,
     GlobalStaffFactory,
@@ -34,6 +35,8 @@ from lms.djangoapps.courseware.tests.factories import (
     StaffFactory
 )
 from lms.djangoapps.discussion.django_comment_client.tests.factories import RoleFactory
+from openedx.features.discounts.applicability import get_discount_expiration_date
+from openedx.features.discounts.utils import format_strikeout_price
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from openedx.core.djangoapps.dark_lang.models import DarkLangConfig
 from openedx.core.djangoapps.django_comment_common.models import (
@@ -217,7 +220,7 @@ class TestCourseHomePage(CourseHomePageTestCase):
 
         # Fetch the view and verify the query counts
         # TODO: decrease query count as part of REVO-28
-        with self.assertNumQueries(95, table_blacklist=QUERY_COUNT_TABLE_BLACKLIST):
+        with self.assertNumQueries(97, table_blacklist=QUERY_COUNT_TABLE_BLACKLIST):
             with check_mongo_calls(4):
                 url = course_home_url(self.course)
                 self.client.get(url)
@@ -410,8 +413,8 @@ class TestCourseHomePageAccess(CourseHomePageTestCase):
         )
         self.assertRedirects(response, expected_url)
 
-    @mock.patch('openedx.features.course_experience.utils.discount_percentage')
-    @mock.patch('openedx.features.course_experience.utils.can_receive_discount')
+    @mock.patch('openedx.features.discounts.utils.discount_percentage')
+    @mock.patch('openedx.features.discounts.utils.can_receive_discount')
     @ddt.data(
         [True, 15],
         [True, 13],
@@ -432,11 +435,19 @@ class TestCourseHomePageAccess(CourseHomePageTestCase):
         self.client.login(username=user.username, password=self.TEST_PASSWORD)
         url = course_home_url(self.course)
         response = self.client.get(url)
+        discount_expiration_date = get_discount_expiration_date(user, self.course).strftime(u'%B %d')
+        upgrade_link = verified_upgrade_deadline_link(user=user, course=self.course)
         bannerText = u'''<div class="first-purchase-offer-banner">
-                     <span class="first-purchase-offer-banner-bold">
-                     {}% off your first upgrade.
-                     </span> Discount automatically applied.
-                     </div>'''.format(percentage)
+             <span class="first-purchase-offer-banner-bold">
+             Upgrade by {discount_expiration_date} and save {percentage}% [{strikeout_price}]</span>
+             <br>Discount will be automatically applied at checkout. <a href="{upgrade_link}">Upgrade Now</a>
+             </div>'''.format(
+            discount_expiration_date=discount_expiration_date,
+            percentage=percentage,
+            strikeout_price=HTML(format_strikeout_price(user, self.course, check_for_discount=False)[0]),
+            upgrade_link=upgrade_link
+        )
+
         if applicability:
             self.assertContains(response, bannerText, html=True)
         else:
@@ -962,17 +973,17 @@ class CourseHomeFragmentViewTests(ModuleStoreTestCase):
 
     def assert_upgrade_message_not_displayed(self):
         response = self.client.get(self.url)
-        self.assertNotIn('section-upgrade', response.content)
+        self.assertNotContains(response, 'section-upgrade')
 
     def assert_upgrade_message_displayed(self):
         response = self.client.get(self.url)
-        self.assertIn('section-upgrade', response.content)
+        self.assertContains(response, 'section-upgrade')
         url = EcommerceService().get_checkout_page_url(self.verified_mode.sku)
-        self.assertIn('<a class="btn-brand btn-upgrade"', response.content)
-        self.assertIn(url, response.content)
-        self.assertIn(
+        self.assertContains(response, '<a class="btn-brand btn-upgrade"')
+        self.assertContains(response, url)
+        self.assertContains(
+            response,
             u"Upgrade (<span class='price'>${price}</span>)".format(price=self.verified_mode.min_price),
-            response.content.decode(response.charset)
         )
 
     def test_no_upgrade_message_if_logged_out(self):
@@ -1012,5 +1023,4 @@ class CourseHomeFragmentViewTests(ModuleStoreTestCase):
         with SHOW_UPGRADE_MSG_ON_COURSE_HOME.override(True):
             response = self.client.get(self.url)
 
-        content = response.content.decode(response.charset)
-        assert "<span>DISCOUNT_PRICE</span>" in content
+        self.assertContains(response, "<span>DISCOUNT_PRICE</span>")

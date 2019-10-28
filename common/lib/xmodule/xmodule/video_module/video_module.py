@@ -200,6 +200,8 @@ class VideoBlock(
         return waffle_flags()[DEPRECATE_YOUTUBE].is_enabled(self.location.course_key)
 
     def youtube_disabled_for_course(self):
+        if not self.location.context_key.is_course:
+            return False  # Only courses have this flag
         if CourseYoutubeBlockedFlag.feature_enabled(self.location.course_key):
             return True
         else:
@@ -479,7 +481,7 @@ class VideoBlock(
                         'There is no transcript file associated with the {lang} language.',
                         'There are no transcript files associated with the {lang} languages.',
                         len(no_transcript_lang)
-                    ).format(lang=', '.join(no_transcript_lang))
+                    ).format(lang=', '.join(sorted(no_transcript_lang)))
                 )
             )
         return validation
@@ -598,6 +600,25 @@ class VideoBlock(
         return editable_fields
 
     @classmethod
+    def parse_xml_new_runtime(cls, node, runtime, keys):
+        """
+        Implement the video block's special XML parsing requirements for the
+        new runtime only. For all other runtimes, use the existing XModule-style
+        methods like .from_xml().
+        """
+        video_block = runtime.construct_xblock_from_class(cls, keys)
+        field_data = cls.parse_video_xml(node)
+        for key, val in field_data.items():
+            setattr(video_block, key, cls.fields[key].from_json(val))
+        # Update VAL with info extracted from `xml_object`
+        video_block.edx_video_id = video_block.import_video_info_into_val(
+            node,
+            runtime.resources_fs,
+            keys.usage_id.context_key,
+        )
+        return video_block
+
+    @classmethod
     def from_xml(cls, xml_data, system, id_generator):
         """
         Creates an instance of this descriptor from the supplied xml_data.
@@ -648,16 +669,16 @@ class VideoBlock(
         if youtube_string and youtube_string != '1.00:3_yD_cEKoCk':
             xml.set('youtube', six.text_type(youtube_string))
         xml.set('url_name', self.url_name)
-        attrs = {
-            'display_name': self.display_name,
-            'show_captions': json.dumps(self.show_captions),
-            'start_time': self.start_time,
-            'end_time': self.end_time,
-            'sub': self.sub,
-            'download_track': json.dumps(self.download_track),
-            'download_video': json.dumps(self.download_video),
-        }
-        for key, value in attrs.items():
+        attrs = [
+            ('display_name', self.display_name),
+            ('show_captions', json.dumps(self.show_captions)),
+            ('start_time', self.start_time),
+            ('end_time', self.end_time),
+            ('sub', self.sub),
+            ('download_track', json.dumps(self.download_track)),
+            ('download_video', json.dumps(self.download_video))
+        ]
+        for key, value in attrs:
             # Mild workaround to ensure that tests pass -- if a field
             # is set to its default value, we don't write it out.
             if value:

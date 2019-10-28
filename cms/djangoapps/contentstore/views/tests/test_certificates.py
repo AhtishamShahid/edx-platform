@@ -181,7 +181,10 @@ class CertificatesBaseTestCase(object):
         with self.assertRaises(Exception) as context:
             CertificateManager.validate(json_data_1)
 
-        self.assertIn("Unsupported certificate schema version: 100.  Expected version: 1.", context.exception)
+        self.assertIn(
+            "Unsupported certificate schema version: 100.  Expected version: 1.",
+            str(context.exception)
+        )
 
         #Test certificate name is missing
         json_data_2 = {
@@ -192,7 +195,7 @@ class CertificatesBaseTestCase(object):
         with self.assertRaises(Exception) as context:
             CertificateManager.validate(json_data_2)
 
-        self.assertIn('must have name of the certificate', context.exception)
+        self.assertIn('must have name of the certificate', str(context.exception))
 
 
 @ddt.ddt
@@ -292,8 +295,8 @@ class CertificatesListHandlerTestCase(
 
         # in html response
         result = self.client.get_html(self._url())
-        self.assertIn('Test certificate', result.content)
-        self.assertIn('Test description', result.content)
+        self.assertContains(result, 'Test certificate')
+        self.assertContains(result, 'Test description')
 
         # in JSON response
         response = self.client.get_json(self._url())
@@ -317,7 +320,7 @@ class CertificatesListHandlerTestCase(
 
         # in html response
         result = self.client.get_html(self._url())
-        self.assertNotIn('Test certificate', result.content)
+        self.assertNotContains(result, 'Test certificate')
 
     def test_unsupported_http_accept_header(self):
         """
@@ -346,8 +349,7 @@ class CertificatesListHandlerTestCase(
             self._url(),
             data=CERTIFICATE_JSON
         )
-        self.assertEqual(response.status_code, 403)
-        self.assertIn("error", response.content)
+        self.assertContains(response, "error", status_code=403)
 
     def test_audit_course_mode_is_skipped(self):
         """

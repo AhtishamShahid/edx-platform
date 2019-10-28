@@ -5,7 +5,7 @@ Utility functions for transcripts.
 from __future__ import absolute_import
 
 import copy
-import json
+import simplejson as json
 import logging
 import os
 from functools import wraps
@@ -20,6 +20,7 @@ from six import text_type
 from six.moves import range, zip
 from six.moves.html_parser import HTMLParser  # pylint: disable=import-error
 
+from opaque_keys.edx.locator import CourseLocator, LibraryLocator
 from xmodule.contentstore.content import StaticContent
 from xmodule.contentstore.django import contentstore
 from xmodule.exceptions import NotFoundError
@@ -125,7 +126,7 @@ def save_subs_to_store(subs, subs_id, item, language='en'):
 
     Returns: location of saved subtitles.
     """
-    filedata = json.dumps(subs, indent=2)
+    filedata = json.dumps(subs, indent=2).encode('utf-8')
     filename = subs_filename(subs_id, language)
     return save_to_store(filedata, filename, 'application/json', item.location)
 
@@ -144,7 +145,7 @@ def youtube_video_transcript_name(youtube_text_api):
     # http://video.google.com/timedtext?type=list&v={VideoId}
     youtube_response = requests.get('http://' + youtube_text_api['url'], params=transcripts_param)
     if youtube_response.status_code == 200 and youtube_response.text:
-        youtube_data = etree.fromstring(youtube_response.content, parser=utf8_parser)
+        youtube_data = etree.fromstring(youtube_response.text.encode('utf-8'), parser=utf8_parser)
         # iterate all transcripts information from youtube server
         for element in youtube_data:
             # search specific language code such as 'en' in transcripts info list
@@ -345,7 +346,7 @@ def copy_or_rename_transcript(new_name, old_name, item, delete_old=False, user=N
     """
     filename = u'subs_{0}.srt.sjson'.format(old_name)
     content_location = StaticContent.compute_location(item.location.course_key, filename)
-    transcripts = contentstore().find(content_location).data
+    transcripts = contentstore().find(content_location).data.decode('utf-8')
     save_subs_to_store(json.loads(transcripts), new_name, item)
     item.sub = new_name
     item.save_with_metadata(user)
@@ -653,7 +654,7 @@ class Transcript(object):
         if input_format == 'srt':
 
             if output_format == 'txt':
-                text = SubRipFile.from_string(content.decode('utf8')).text
+                text = SubRipFile.from_string(content).text
                 return HTMLParser().unescape(text)
 
             elif output_format == 'sjson':
@@ -662,7 +663,7 @@ class Transcript(object):
                     # the exception if something went wrong in parsing the transcript.
                     srt_subs = SubRipFile.from_string(
                         # Skip byte order mark(BOM) character
-                        content.decode('utf-8-sig'),
+                        content.encode('utf-8').decode('utf-8-sig'),
                         error_handling=SubRipFile.ERROR_RAISE
                     )
                 except Error as ex:   # Base exception from pysrt
@@ -809,11 +810,11 @@ class VideoTranscriptsMixin(object):
                 log.debug("No subtitles for 'en' language")
                 raise ValueError
 
-            data = Transcript.asset(self.location, transcript_name, lang).data
+            data = Transcript.asset(self.location, transcript_name, lang).data.decode('utf-8')
             filename = u'{}.{}'.format(transcript_name, transcript_format)
             content = Transcript.convert(data, 'sjson', transcript_format)
         else:
-            data = Transcript.asset(self.location, None, None, other_lang[lang]).data
+            data = Transcript.asset(self.location, None, None, other_lang[lang]).data.decode('utf-8')
             filename = u'{}.{}'.format(os.path.splitext(other_lang[lang])[0], transcript_format)
             content = Transcript.convert(data, 'srt', transcript_format)
 
@@ -924,11 +925,11 @@ def get_transcript_for_video(video_location, subs_id, file_name, language):
     try:
         if subs_id is None:
             raise NotFoundError
-        content = Transcript.asset(video_location, subs_id, language).data
+        content = Transcript.asset(video_location, subs_id, language).data.decode('utf-8')
         base_name = subs_id
         input_format = Transcript.SJSON
     except NotFoundError:
-        content = Transcript.asset(video_location, None, language, file_name).data
+        content = Transcript.asset(video_location, None, language, file_name).data.decode('utf-8')
         base_name = os.path.splitext(file_name)[0]
         input_format = Transcript.SRT
 
@@ -1016,6 +1017,12 @@ def get_transcript(video, lang=None, output_format=Transcript.SRT, youtube_id=No
             raise NotFoundError
         return get_transcript_from_val(edx_video_id, lang, output_format)
     except NotFoundError:
+        # If this is not in a modulestore course or library, don't try loading from contentstore:
+        if not isinstance(video.scope_ids.usage_id.course_key, (CourseLocator, LibraryLocator)):
+            raise NotFoundError(
+                u'Video transcripts cannot yet be loaded from Blockstore (block: {})'.format(video.scope_ids.usage_id),
+            )
+
         return get_transcript_from_contentstore(
             video,
             lang,

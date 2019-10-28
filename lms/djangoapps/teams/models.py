@@ -1,8 +1,7 @@
 """
 Django models related to teams functionality.
 """
-
-from __future__ import absolute_import
+from __future__ import absolute_import, unicode_literals
 
 from datetime import datetime
 from uuid import uuid4
@@ -12,6 +11,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.dispatch import receiver
+from django.utils.encoding import python_2_unicode_compatible
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy
 from django_countries.fields import CountryField
@@ -95,18 +95,32 @@ def handle_activity(user, post, original_author_id=None):
         CourseTeamMembership.update_last_activity(user, post.commentable_id)
 
 
+@python_2_unicode_compatible
 class CourseTeam(models.Model):
     """
     This model represents team related info.
 
     .. no_pii:
     """
+    def __str__(self):
+        return "{} in {}".format(self.name, self.course_id)
+
+    def __repr__(self):
+        return (
+            "<CourseTeam"
+            " id={0.id}"
+            " team_id={0.team_id}"
+            " team_size={0.team_size}"
+            " topic_id={0.topic_id}"
+            " course_id={0.course_id}"
+            ">"
+        ).format(self)
 
     class Meta(object):
         app_label = "teams"
 
-    team_id = models.CharField(max_length=255, unique=True)
-    discussion_topic_id = models.CharField(max_length=255, unique=True)
+    team_id = models.SlugField(max_length=255, unique=True)
+    discussion_topic_id = models.SlugField(max_length=255, unique=True)
     name = models.CharField(max_length=255, db_index=True)
     course_id = CourseKeyField(max_length=255, db_index=True)
     topic_id = models.CharField(max_length=255, db_index=True, blank=True)
@@ -161,9 +175,6 @@ class CourseTeam(models.Model):
 
         return course_team
 
-    def __repr__(self):
-        return "<CourseTeam team_id={0.team_id}>".format(self)
-
     def add_user(self, user):
         """Adds the given user to the CourseTeam."""
         if not CourseEnrollment.is_enrolled(user, self.course_id):
@@ -181,12 +192,25 @@ class CourseTeam(models.Model):
         self.save()
 
 
+@python_2_unicode_compatible
 class CourseTeamMembership(models.Model):
     """
     This model represents the membership of a single user in a single team.
 
     .. no_pii:
     """
+
+    def __str__(self):
+        return "{} is member of {}".format(self.user.username, self.team)
+
+    def __repr__(self):
+        return (
+            "<CourseTeamMembership"
+            " id={0.id}"
+            " user_id={0.user.id}"
+            " team_id={0.team.id}"
+            ">"
+        ).format(self)
 
     class Meta(object):
         app_label = "teams"
@@ -223,7 +247,7 @@ class CourseTeamMembership(models.Model):
                     )
         super(CourseTeamMembership, self).__setattr__(name, value)
 
-    def save(self, *args, **kwargs):
+    def save(self, *args, **kwargs):  # pylint: disable=arguments-differ
         """Customize save method to set the last_activity_at if it does not
         currently exist. Also resets the team's size if this model is
         being created.
@@ -237,7 +261,7 @@ class CourseTeamMembership(models.Model):
         if should_reset_team_size:
             self.team.reset_team_size()
 
-    def delete(self, *args, **kwargs):
+    def delete(self, *args, **kwargs):  # pylint: disable=arguments-differ
         """Recompute the related team's team_size after deleting a membership"""
         super(CourseTeamMembership, self).delete(*args, **kwargs)
         self.team.reset_team_size()

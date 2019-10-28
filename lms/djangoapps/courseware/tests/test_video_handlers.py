@@ -93,7 +93,7 @@ def _create_file(content=''):
     """
     sjson_file = tempfile.NamedTemporaryFile(prefix="subs_", suffix=".srt.sjson")
     sjson_file.content_type = 'application/json'
-    sjson_file.write(textwrap.dedent(content))
+    sjson_file.write(textwrap.dedent(content).encode('utf-8'))
     sjson_file.seek(0)
     return sjson_file
 
@@ -256,14 +256,14 @@ class TestTranscriptAvailableTranslationsDispatch(TestVideo):
 
         request = Request.blank('/available_translations')
         response = self.item.transcript(request=request, dispatch='available_translations')
-        self.assertEqual(json.loads(response.body), ['en'])
+        self.assertEqual(json.loads(response.body.decode('utf-8')), ['en'])
 
     def test_available_translation_non_en(self):
         _upload_file(_create_srt_file(), self.item_descriptor.location, os.path.split(self.srt_file.name)[1])
 
         request = Request.blank('/available_translations')
         response = self.item.transcript(request=request, dispatch='available_translations')
-        self.assertEqual(json.loads(response.body), ['uk'])
+        self.assertEqual(json.loads(response.body.decode('utf-8')), ['uk'])
 
     @patch('xmodule.video_module.transcripts_utils.get_video_transcript_content')
     def test_multiple_available_translations(self, mock_get_video_transcript_content):
@@ -289,7 +289,7 @@ class TestTranscriptAvailableTranslationsDispatch(TestVideo):
 
         request = Request.blank('/available_translations')
         response = self.item.transcript(request=request, dispatch='available_translations')
-        self.assertEqual(json.loads(response.body), ['en', 'uk'])
+        self.assertEqual(sorted(json.loads(response.body.decode('utf-8'))), sorted(['en', 'uk']))
 
     @patch('xmodule.video_module.transcripts_utils.get_video_transcript_content')
     @patch('xmodule.video_module.transcripts_utils.get_available_transcript_languages')
@@ -366,7 +366,7 @@ class TestTranscriptAvailableTranslationsDispatch(TestVideo):
         # Make request to available translations dispatch.
         request = Request.blank('/available_translations')
         response = self.item.transcript(request=request, dispatch='available_translations')
-        six.assertCountEqual(self, json.loads(response.body), result)
+        six.assertCountEqual(self, json.loads(response.body.decode('utf-8')), result)
 
     @patch('xmodule.video_module.transcripts_utils.edxval_api.get_available_transcript_languages')
     def test_val_available_translations_feature_disabled(self, mock_get_available_transcript_languages):
@@ -416,7 +416,7 @@ class TestTranscriptAvailableTranslationsBumperDispatch(TestVideo):
 
         request = Request.blank('/' + self.dispatch)
         response = self.item.transcript(request=request, dispatch=self.dispatch)
-        self.assertEqual(json.loads(response.body), [lang])
+        self.assertEqual(json.loads(response.body.decode('utf-8')), [lang])
 
     @patch('xmodule.video_module.transcripts_utils.get_available_transcript_languages')
     def test_multiple_available_translations(self, mock_get_transcript_languages):
@@ -441,7 +441,7 @@ class TestTranscriptAvailableTranslationsBumperDispatch(TestVideo):
         request = Request.blank('/' + self.dispatch)
         response = self.item.transcript(request=request, dispatch=self.dispatch)
         # Assert that bumper only get its own translations.
-        self.assertEqual(json.loads(response.body), ['en', 'uk'])
+        self.assertEqual(sorted(json.loads(response.body.decode('utf-8'))), sorted(['en', 'uk']))
 
 
 @ddt.ddt
@@ -484,7 +484,7 @@ class TestTranscriptDownloadDispatch(TestVideo):
     def test_download_srt_exist(self, __):
         request = Request.blank('/download')
         response = self.item.transcript(request=request, dispatch='download')
-        self.assertEqual(response.body, 'Subs!')
+        self.assertEqual(response.body.decode('utf-8'), 'Subs!')
         self.assertEqual(response.headers['Content-Type'], 'application/x-subrip; charset=utf-8')
         self.assertEqual(response.headers['Content-Language'], 'en')
 
@@ -496,7 +496,7 @@ class TestTranscriptDownloadDispatch(TestVideo):
         self.item.transcript_format = 'txt'
         request = Request.blank('/download')
         response = self.item.transcript(request=request, dispatch='download')
-        self.assertEqual(response.body, 'Subs!')
+        self.assertEqual(response.body.decode('utf-8'), 'Subs!')
         self.assertEqual(response.headers['Content-Type'], 'text/plain; charset=utf-8')
         self.assertEqual(response.headers['Content-Language'], 'en')
 
@@ -515,7 +515,7 @@ class TestTranscriptDownloadDispatch(TestVideo):
     def test_download_non_en_non_ascii_filename(self, __):
         request = Request.blank('/download')
         response = self.item.transcript(request=request, dispatch='download')
-        self.assertEqual(response.body, 'Subs!')
+        self.assertEqual(response.body.decode('utf-8'), 'Subs!')
         self.assertEqual(response.headers['Content-Type'], 'application/x-subrip; charset=utf-8')
         self.assertEqual(response.headers['Content-Disposition'], 'attachment; filename="en_塞.srt"')
 
@@ -617,7 +617,7 @@ class TestTranscriptTranslationGetDispatch(TestVideo):
         attach(self.item, subs_id)
         request = Request.blank(url.format(subs_id))
         response = self.item.transcript(request=request, dispatch=dispatch)
-        self.assertDictEqual(json.loads(response.body), subs)
+        self.assertDictEqual(json.loads(response.body.decode('utf-8')), subs)
 
     def test_translation_non_en_youtube_success(self):
         subs = {
@@ -637,7 +637,7 @@ class TestTranscriptTranslationGetDispatch(TestVideo):
         self.store.update_item(self.item, self.user.id)
         request = Request.blank('/translation/uk?videoId={}'.format(subs_id))
         response = self.item.transcript(request=request, dispatch='translation/uk')
-        self.assertDictEqual(json.loads(response.body), subs)
+        self.assertDictEqual(json.loads(response.body.decode('utf-8')), subs)
 
         # 0_75 subs are exist
         request = Request.blank('/translation/uk?videoId={}'.format('0_75'))
@@ -650,7 +650,7 @@ class TestTranscriptTranslationGetDispatch(TestVideo):
             ]
         }
 
-        self.assertDictEqual(json.loads(response.body), calculated_0_75)
+        self.assertDictEqual(json.loads(response.body.decode('utf-8')), calculated_0_75)
         # 1_5 will be generated from 1_0
         self.item.youtube_id_1_5 = '1_5'
         self.store.update_item(self.item, self.user.id)
@@ -663,7 +663,7 @@ class TestTranscriptTranslationGetDispatch(TestVideo):
                 u'\u041f\u0440\u0438\u0432\u0456\u0442, edX \u0432\u0456\u0442\u0430\u0454 \u0432\u0430\u0441.'
             ]
         }
-        self.assertDictEqual(json.loads(response.body), calculated_1_5)
+        self.assertDictEqual(json.loads(response.body.decode('utf-8')), calculated_1_5)
 
     @ddt.data(
         ('translation/en', 'translation/en', attach_sub),
@@ -678,7 +678,7 @@ class TestTranscriptTranslationGetDispatch(TestVideo):
         self.store.update_item(self.item, self.user.id)
         request = Request.blank(url)
         response = self.item.transcript(request=request, dispatch=dispatch)
-        self.assertDictEqual(json.loads(response.body), TRANSCRIPT)
+        self.assertDictEqual(json.loads(response.body.decode('utf-8')), TRANSCRIPT)
 
     def test_translaton_non_en_html5_success(self):
         subs = {
@@ -695,7 +695,7 @@ class TestTranscriptTranslationGetDispatch(TestVideo):
         self.item.youtube_id_1_0 = ""
         request = Request.blank('/translation/uk')
         response = self.item.transcript(request=request, dispatch='translation/uk')
-        self.assertDictEqual(json.loads(response.body), subs)
+        self.assertDictEqual(json.loads(response.body.decode('utf-8')), subs)
 
     def test_translation_static_transcript_xml_with_data_dirc(self):
         """
@@ -973,7 +973,7 @@ class TestStudioTranscriptTranslationPostDispatch(TestVideo):
         request = Request.blank('/translation', POST=post_data)
         response = self.item_descriptor.studio_transcript(request=request, dispatch='translation')
         self.assertEqual(response.status, '201 Created')
-        response = json.loads(response.body)
+        response = json.loads(response.text)
         self.assertTrue(response["language_code"], "uk")
         self.assertDictEqual(self.item_descriptor.transcripts, {})
         self.assertTrue(edxval_api.get_video_transcript_data(video_id=response["edx_video_id"], language_code="uk"))
@@ -1025,7 +1025,7 @@ class TestStudioTranscriptTranslationDeleteDispatch(TestVideo):
         """
         Verify that DELETE dispatch works as expected when required args are missing from request
         """
-        request = Request(self.REQUEST_META, body=json.dumps(params))
+        request = Request(self.REQUEST_META, body=json.dumps(params).encode('utf-8'))
         response = self.item_descriptor.studio_transcript(request=request, dispatch='translation')
         self.assertEqual(response.status_code, 400)
 
@@ -1052,7 +1052,7 @@ class TestStudioTranscriptTranslationDeleteDispatch(TestVideo):
         # verify that a video transcript exists for expected data
         self.assertTrue(api.get_video_transcript_data(video_id=self.EDX_VIDEO_ID, language_code=self.LANGUAGE_CODE_UK))
 
-        request = Request(self.REQUEST_META, body=request_body)
+        request = Request(self.REQUEST_META, body=request_body.encode('utf-8'))
         self.item_descriptor.edx_video_id = self.EDX_VIDEO_ID
         response = self.item_descriptor.studio_transcript(request=request, dispatch='translation')
         self.assertEqual(response.status_code, 200)
@@ -1066,7 +1066,7 @@ class TestStudioTranscriptTranslationDeleteDispatch(TestVideo):
         """
         request_body = json.dumps({'lang': self.LANGUAGE_CODE_UK, 'edx_video_id': ''})
         srt_file_name_uk = subs_filename('ukrainian_translation.srt', lang=self.LANGUAGE_CODE_UK)
-        request = Request(self.REQUEST_META, body=request_body)
+        request = Request(self.REQUEST_META, body=request_body.encode('utf-8'))
 
         # upload and verify that srt file exists in assets
         _upload_file(self.SRT_FILE, self.item_descriptor.location, srt_file_name_uk)
@@ -1091,7 +1091,7 @@ class TestStudioTranscriptTranslationDeleteDispatch(TestVideo):
         request_body = json.dumps({'lang': self.LANGUAGE_CODE_EN, 'edx_video_id': ''})
         srt_file_name_en = subs_filename('english_translation.srt', lang=self.LANGUAGE_CODE_EN)
         self.item_descriptor.transcripts['en'] = 'english_translation.srt'
-        request = Request(self.REQUEST_META, body=request_body)
+        request = Request(self.REQUEST_META, body=request_body.encode('utf-8'))
 
         # upload and verify that srt file exists in assets
         _upload_file(self.SRT_FILE, self.item_descriptor.location, srt_file_name_en)
@@ -1111,7 +1111,7 @@ class TestStudioTranscriptTranslationDeleteDispatch(TestVideo):
         """
         request_body = json.dumps({'lang': self.LANGUAGE_CODE_EN, 'edx_video_id': ''})
         sub_file_name = subs_filename(self.item_descriptor.sub, lang=self.LANGUAGE_CODE_EN)
-        request = Request(self.REQUEST_META, body=request_body)
+        request = Request(self.REQUEST_META, body=request_body.encode('utf-8'))
 
         # sub should not be empy
         self.assertFalse(self.item_descriptor.sub == u'')
@@ -1282,7 +1282,7 @@ class TestGetTranscript(TestVideo):
 
         transcripts = self.item.get_transcripts_info()
         text, filename, mime_type = self.item.get_transcript(transcripts)
-        expected_text = textwrap.dedent("""
+        expected_text = textwrap.dedent(u"""
         0
         00:00:00,12 --> 00:00:00,100
         Привіт, edX вітає вас.
