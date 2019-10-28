@@ -11,8 +11,8 @@ from common.test.acceptance.pages.studio.html_component_editor import HTMLEditor
 from common.test.acceptance.pages.studio.utils import add_component, type_in_codemirror
 from common.test.acceptance.tests.studio.base_studio_test import ContainerBase
 
-upload_suffix = 'data/uploads/studio-uploads/'
-upload_file_dir = os.path.abspath(os.path.join(__file__, '../../../../', upload_suffix))
+UPLOAD_SUFFIX = 'data/uploads/studio-uploads/'
+UPLOAD_FILE_DIR = os.path.abspath(os.path.join(__file__, '../../../../', UPLOAD_SUFFIX))
 
 
 class HTMLComponentEditorTests(ContainerBase):
