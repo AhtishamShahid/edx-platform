@@ -13,8 +13,8 @@ from mock import MagicMock, Mock, patch
 from six import text_type
 from six.moves import range
 
-from courseware.courses import get_course_by_id
-from courseware.tabs import (
+from lms.djangoapps.courseware.courses import get_course_by_id
+from lms.djangoapps.courseware.tabs import (
     CourseInfoTab,
     CoursewareTab,
     ExternalDiscussionCourseTab,
@@ -22,9 +22,9 @@ from courseware.tabs import (
     ProgressTab,
     get_course_tab_list
 )
-from courseware.tests.factories import InstructorFactory, StaffFactory
-from courseware.tests.helpers import LoginEnrollmentTestCase
-from courseware.views.views import StaticCourseTabView, get_static_tab_fragment
+from lms.djangoapps.courseware.tests.factories import InstructorFactory, StaffFactory
+from lms.djangoapps.courseware.tests.helpers import LoginEnrollmentTestCase
+from lms.djangoapps.courseware.views.views import StaticCourseTabView, get_static_tab_fragment
 from openedx.core.djangoapps.waffle_utils.testutils import override_waffle_flag
 from openedx.core.djangolib.testing.utils import get_mock_request
 from openedx.features.course_experience import UNIFIED_COURSE_TAB_FLAG
@@ -253,14 +253,12 @@ class StaticTabDateTestCase(LoginEnrollmentTestCase, SharedModuleStoreTestCase):
         self.setup_user()
         url = reverse('static_tab', args=[text_type(self.course.id), 'new_tab'])
         resp = self.client.get(url)
-        self.assertEqual(resp.status_code, 200)
-        self.assertIn("OOGIE BLOOGIE", resp.content.decode('utf-8'))
+        self.assertContains(resp, "OOGIE BLOOGIE")
 
     def test_anonymous_user(self):
         url = reverse('static_tab', args=[text_type(self.course.id), 'new_tab'])
         resp = self.client.get(url)
-        self.assertEqual(resp.status_code, 200)
-        self.assertIn("OOGIE BLOOGIE", resp.content.decode('utf-8'))
+        self.assertContains(resp, "OOGIE BLOOGIE")
 
     def test_invalid_course_key(self):
         self.setup_user()
@@ -282,7 +280,7 @@ class StaticTabDateTestCase(LoginEnrollmentTestCase, SharedModuleStoreTestCase):
         self.assertIn('static_tab', tab_content)
 
         # Test when render raises an exception
-        with patch('courseware.views.views.get_module') as mock_module_render:
+        with patch('lms.djangoapps.courseware.views.views.get_module') as mock_module_render:
             mock_module_render.return_value = MagicMock(
                 render=Mock(side_effect=Exception('Render failed!'))
             )
@@ -328,15 +326,13 @@ class StaticTabDateTestCaseXML(LoginEnrollmentTestCase, ModuleStoreTestCase):
         self.setup_user()
         url = reverse('static_tab', args=[text_type(self.xml_course_key), self.xml_url])
         resp = self.client.get(url)
-        self.assertEqual(resp.status_code, 200)
-        self.assertIn(self.xml_data, resp.content.decode('utf-8'))
+        self.assertContains(resp, self.xml_data)
 
     @patch.dict('django.conf.settings.FEATURES', {'DISABLE_START_DATES': False})
     def test_anonymous_user_xml(self):
         url = reverse('static_tab', args=[text_type(self.xml_course_key), self.xml_url])
         resp = self.client.get(url)
-        self.assertEqual(resp.status_code, 200)
-        self.assertIn(self.xml_data, resp.content.decode('utf-8'))
+        self.assertContains(resp, self.xml_data)
 
 
 @patch.dict('django.conf.settings.FEATURES', {'ENTRANCE_EXAMS': True})
@@ -644,7 +640,6 @@ class CourseTabListTestCase(TabListTestCase):
     @patch.dict("django.conf.settings.FEATURES", {
         "ENABLE_TEXTBOOK": True,
         "ENABLE_DISCUSSION_SERVICE": True,
-        "ENABLE_STUDENT_NOTES": True,
         "ENABLE_EDXNOTES": True,
     })
     def test_iterate_displayable(self):

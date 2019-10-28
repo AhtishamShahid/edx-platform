@@ -28,6 +28,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
 from django.db import models, transaction
+from django.utils.encoding import python_2_unicode_compatible
 from django.utils.translation import ugettext as _
 from opaque_keys.edx.django.models import CourseKeyField
 from six import text_type
@@ -42,6 +43,7 @@ PROGRESS = 'PROGRESS'
 TASK_INPUT_LENGTH = 10000
 
 
+@python_2_unicode_compatible
 class InstructorTask(models.Model):
     """
     Stores information about background tasks that have been submitted to
@@ -91,7 +93,7 @@ class InstructorTask(models.Model):
             'task_output': self.task_output,
         },)
 
-    def __unicode__(self):
+    def __str__(self):
         return six.text_type(repr(self))
 
     @classmethod
@@ -235,7 +237,10 @@ class ReportStore(object):
         compatibility.
         """
         for row in rows:
-            yield [six.text_type(item).encode('utf-8') for item in row]
+            if six.PY2:
+                yield [six.text_type(item).encode('utf-8') for item in row]
+            else:
+                yield [six.text_type(item) for item in row]
 
 
 class DjangoStorageReportStore(ReportStore):
@@ -283,7 +288,8 @@ class DjangoStorageReportStore(ReportStore):
         """
         output_buffer = ContentFile('')
         # Adding unicode signature (BOM) for MS Excel 2013 compatibility
-        output_buffer.write(codecs.BOM_UTF8)
+        if six.PY2:
+            output_buffer.write(codecs.BOM_UTF8)
         csvwriter = csv.writer(output_buffer)
         csvwriter.writerows(self._get_utf8_encoded_rows(rows))
         output_buffer.seek(0)
@@ -321,5 +327,5 @@ class DjangoStorageReportStore(ReportStore):
         """
         Return the full path to a given file for a given course.
         """
-        hashed_course_id = hashlib.sha1(text_type(course_id)).hexdigest()
+        hashed_course_id = hashlib.sha1(text_type(course_id).encode('utf-8')).hexdigest()
         return os.path.join(hashed_course_id, filename)

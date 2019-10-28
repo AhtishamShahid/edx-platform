@@ -116,8 +116,7 @@ EDX_PLATFORM_REVISION = ENV_TOKENS.get('EDX_PLATFORM_REVISION', EDX_PLATFORM_REV
 # STATIC_URL_BASE specifies the base url to use for static files
 STATIC_URL_BASE = ENV_TOKENS.get('STATIC_URL_BASE', None)
 if STATIC_URL_BASE:
-    # collectstatic will fail if STATIC_URL is a unicode string
-    STATIC_URL = STATIC_URL_BASE.encode('ascii')
+    STATIC_URL = STATIC_URL_BASE
     if not STATIC_URL.endswith("/"):
         STATIC_URL += "/"
     STATIC_URL += 'studio/'
@@ -135,6 +134,9 @@ DEFAULT_MOBILE_AVAILABLE = ENV_TOKENS.get(
     'DEFAULT_MOBILE_AVAILABLE',
     DEFAULT_MOBILE_AVAILABLE
 )
+
+# How long to cache OpenAPI schemas and UI, in seconds.
+OPENAPI_CACHE_TIMEOUT = ENV_TOKENS.get('OPENAPI_CACHE_TIMEOUT', 60 * 60)
 
 # MEDIA_ROOT specifies the directory where user-uploaded files are stored.
 MEDIA_ROOT = ENV_TOKENS.get('MEDIA_ROOT', MEDIA_ROOT)
@@ -404,6 +406,12 @@ XBLOCK_FIELD_DATA_WRAPPERS = ENV_TOKENS.get(
 
 CONTENTSTORE = AUTH_TOKENS['CONTENTSTORE']
 DOC_STORE_CONFIG = AUTH_TOKENS['DOC_STORE_CONFIG']
+
+############################### BLOCKSTORE #####################################
+BLOCKSTORE_API_URL = ENV_TOKENS.get('BLOCKSTORE_API_URL', None)  # e.g. "https://blockstore.example.com/api/v1/"
+# Configure an API auth token at (blockstore URL)/admin/authtoken/token/
+BLOCKSTORE_API_AUTH_TOKEN = AUTH_TOKENS.get('BLOCKSTORE_API_AUTH_TOKEN', None)
+
 # Datadog for events!
 DATADOG = AUTH_TOKENS.get("DATADOG", {})
 DATADOG.update(ENV_TOKENS.get("DATADOG", {}))
@@ -569,6 +577,9 @@ COMPLETION_VIDEO_COMPLETE_PERCENTAGE = ENV_TOKENS.get(
     'COMPLETION_VIDEO_COMPLETE_PERCENTAGE',
     COMPLETION_VIDEO_COMPLETE_PERCENTAGE,
 )
+
+############### Settings for django-fernet-fields ##################
+FERNET_KEYS = AUTH_TOKENS.get('FERNET_KEYS', FERNET_KEYS)
 
 ####################### Enterprise Settings ######################
 

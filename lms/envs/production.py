@@ -137,8 +137,7 @@ if STATIC_ROOT_BASE:
 # STATIC_URL_BASE specifies the base url to use for static files
 STATIC_URL_BASE = ENV_TOKENS.get('STATIC_URL_BASE', None)
 if STATIC_URL_BASE:
-    # collectstatic will fail if STATIC_URL is a unicode string
-    STATIC_URL = STATIC_URL_BASE.encode('ascii')
+    STATIC_URL = STATIC_URL_BASE
     if not STATIC_URL.endswith("/"):
         STATIC_URL += "/"
 
@@ -572,6 +571,11 @@ MONGODB_LOG = AUTH_TOKENS.get('MONGODB_LOG', {})
 EMAIL_HOST_USER = AUTH_TOKENS.get('EMAIL_HOST_USER', '')  # django default is ''
 EMAIL_HOST_PASSWORD = AUTH_TOKENS.get('EMAIL_HOST_PASSWORD', '')  # django default is ''
 
+############################### BLOCKSTORE #####################################
+BLOCKSTORE_API_URL = ENV_TOKENS.get('BLOCKSTORE_API_URL', None)  # e.g. "https://blockstore.example.com/api/v1/"
+# Configure an API auth token at (blockstore URL)/admin/authtoken/token/
+BLOCKSTORE_API_AUTH_TOKEN = AUTH_TOKENS.get('BLOCKSTORE_API_AUTH_TOKEN', None)
+
 # Datadog for events!
 DATADOG = AUTH_TOKENS.get("DATADOG", {})
 DATADOG.update(ENV_TOKENS.get("DATADOG", {}))
@@ -583,9 +587,6 @@ if 'DATADOG_API' in AUTH_TOKENS:
 # Analytics API
 ANALYTICS_API_KEY = AUTH_TOKENS.get("ANALYTICS_API_KEY", ANALYTICS_API_KEY)
 ANALYTICS_API_URL = ENV_TOKENS.get("ANALYTICS_API_URL", ANALYTICS_API_URL)
-
-# Mailchimp New User List
-MAILCHIMP_NEW_USER_LIST_ID = ENV_TOKENS.get("MAILCHIMP_NEW_USER_LIST_ID")
 
 # Zendesk
 ZENDESK_USER = AUTH_TOKENS.get("ZENDESK_USER")
@@ -855,7 +856,7 @@ XBLOCK_FIELD_DATA_WRAPPERS += (
 )
 
 MODULESTORE_FIELD_OVERRIDE_PROVIDERS += (
-    'courseware.self_paced_overrides.SelfPacedDateOverrideProvider',
+    'lms.djangoapps.courseware.self_paced_overrides.SelfPacedDateOverrideProvider',
 )
 
 # PROFILE IMAGE CONFIG
@@ -915,10 +916,6 @@ CREDENTIALS_GENERATION_ROUTING_KEY = ENV_TOKENS.get('CREDENTIALS_GENERATION_ROUT
 
 # Queue to use for award program certificates
 PROGRAM_CERTIFICATES_ROUTING_KEY = ENV_TOKENS.get('PROGRAM_CERTIFICATES_ROUTING_KEY', DEFAULT_PRIORITY_QUEUE)
-
-# The extended StudentModule history table
-if FEATURES.get('ENABLE_CSMH_EXTENDED'):
-    INSTALLED_APPS.append('coursewarehistoryextended')
 
 API_ACCESS_MANAGER_EMAIL = ENV_TOKENS.get('API_ACCESS_MANAGER_EMAIL')
 API_ACCESS_FROM_EMAIL = ENV_TOKENS.get('API_ACCESS_FROM_EMAIL')
@@ -1046,6 +1043,9 @@ ICP_LICENSE_INFO = ENV_TOKENS.get('ICP_LICENSE_INFO', {})
 
 ############## Settings for CourseGraph ############################
 COURSEGRAPH_JOB_QUEUE = ENV_TOKENS.get('COURSEGRAPH_JOB_QUEUE', DEFAULT_PRIORITY_QUEUE)
+
+# How long to cache OpenAPI schemas and UI, in seconds.
+OPENAPI_CACHE_TIMEOUT = ENV_TOKENS.get('OPENAPI_CACHE_TIMEOUT', 60 * 60)
 
 ########################## Parental controls config  #######################
 

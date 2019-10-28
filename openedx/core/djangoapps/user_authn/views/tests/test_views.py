@@ -3,6 +3,7 @@
 
 from __future__ import absolute_import
 
+import json
 import logging
 import re
 from http.cookies import SimpleCookie
@@ -125,8 +126,11 @@ class UserAccountUpdateTest(CacheIsolationTestCase, UrlResetMixin):
         self.client.logout()
 
         # Verify that the new password can be used to log in
-        result = self.client.login(username=self.USERNAME, password=self.NEW_PASSWORD)
-        self.assertTrue(result)
+        login_url = reverse('login_post')
+        response = self.client.post(login_url, {'email': self.OLD_EMAIL, 'password': self.NEW_PASSWORD})
+        assert response.status_code == 200
+        response_dict = json.loads(response.content.decode('utf-8'))
+        assert response_dict['success']
 
         # Try reusing the activation link to change the password again
         # Visit the activation link again.
@@ -141,8 +145,10 @@ class UserAccountUpdateTest(CacheIsolationTestCase, UrlResetMixin):
         self.assertFalse(result)
 
         # Verify that the new password continues to be valid
-        result = self.client.login(username=self.USERNAME, password=self.NEW_PASSWORD)
-        self.assertTrue(result)
+        response = self.client.post(login_url, {'email': self.OLD_EMAIL, 'password': self.NEW_PASSWORD})
+        assert response.status_code == 200
+        response_dict = json.loads(response.content.decode('utf-8'))
+        assert response_dict['success']
 
     def test_password_change_failure(self):
         with mock.patch('openedx.core.djangoapps.user_api.accounts.api.request_password_change',
@@ -323,7 +329,7 @@ class LoginAndRegistrationTest(ThirdPartyAuthTestMixin, UrlResetMixin, ModuleSto
             visible=True,
             enabled=True,
             icon_class='',
-            icon_image=SimpleUploadedFile('icon.svg', '<svg><rect width="50" height="100"/></svg>'),
+            icon_image=SimpleUploadedFile('icon.svg', b'<svg><rect width="50" height="100"/></svg>'),
         )
         self.hidden_enabled_provider = self.configure_linkedin_provider(
             visible=False,
@@ -606,7 +612,7 @@ class LoginAndRegistrationTest(ThirdPartyAuthTestMixin, UrlResetMixin, ModuleSto
         tpa_hint = self.hidden_disabled_provider.provider_id
         params = [("next", "/courses/something/?tpa_hint={0}".format(tpa_hint))]
         response = self.client.get(reverse('signin_user'), params, HTTP_ACCEPT="text/html")
-        self.assertNotIn(response.content, tpa_hint)
+        self.assertNotIn(response.content.decode('utf-8'), tpa_hint)
 
     @ddt.data(
         ('signin_user', 'login'),
@@ -650,7 +656,7 @@ class LoginAndRegistrationTest(ThirdPartyAuthTestMixin, UrlResetMixin, ModuleSto
         tpa_hint = self.hidden_disabled_provider.provider_id
         params = [("next", "/courses/something/?tpa_hint={0}".format(tpa_hint))]
         response = self.client.get(reverse(url_name), params, HTTP_ACCEPT="text/html")
-        self.assertNotIn(response.content, tpa_hint)
+        self.assertNotIn(response.content.decode('utf-8'), tpa_hint)
 
     @override_settings(FEATURES=dict(settings.FEATURES, THIRD_PARTY_AUTH_HINT='oa2-google-oauth2'))
     @ddt.data(
@@ -710,7 +716,7 @@ class LoginAndRegistrationTest(ThirdPartyAuthTestMixin, UrlResetMixin, ModuleSto
                 line_break=HTML('<br/>'),
                 enterprise_name=ec_name,
                 platform_name=settings.PLATFORM_NAME,
-                privacy_policy_link_start=HTML(u"<a href='{pp_url}' target='_blank'>").format(
+                privacy_policy_link_start=HTML(u"<a href='{pp_url}' rel='noopener' target='_blank'>").format(
                     pp_url=settings.MKTG_URLS.get('PRIVACY', 'https://www.edx.org/edx-privacy-policy')
                 ),
                 privacy_policy_link_end=HTML("</a>"),
@@ -872,5 +878,4 @@ class AccountCreationTestCaseWithSiteOverrides(SiteMixin, TestCase):
         ALLOW_PUBLIC_ACCOUNT_CREATION flag is turned off
         """
         response = self.client.get(reverse('signin_user'))
-        self.assertNotIn(u'<a class="btn-neutral" href="/register?next=%2Fdashboard">Register</a>',
-                         response.content.decode(response.charset))
+        self.assertNotContains(response, u'<a class="btn-neutral" href="/register?next=%2Fdashboard">Register</a>')

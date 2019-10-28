@@ -199,7 +199,7 @@ def enqueue_async_migrate_transcripts_tasks(course_keys,
         'command_run': command_run
     }
     group([
-        async_migrate_transcript.s(unicode(course_key), **kwargs)
+        async_migrate_transcript.s(text_type(course_key), **kwargs)
         for course_key in course_keys
     ])()
 
@@ -266,7 +266,7 @@ def async_migrate_transcript(self, course_key, **kwargs):   # pylint: disable=un
                 all_transcripts.update({'en': video.sub})
 
             sub_tasks = []
-            video_location = unicode(video.location)
+            video_location = text_type(video.location)
             for lang in all_transcripts:
                 sub_tasks.append(async_migrate_transcript_subtask.s(
                     video_location, revision, lang, force_update, **kwargs
@@ -749,7 +749,7 @@ def import_olx(self, user_id, course_key_string, archive_path, archive_name, lan
     # Locate the uploaded OLX archive (and download it from S3 if necessary)
     # Do everything in a try-except block to make sure everything is properly cleaned up.
     data_root = path(settings.GITHUB_REPO_ROOT)
-    subdir = base64.urlsafe_b64encode(repr(courselike_key))
+    subdir = base64.urlsafe_b64encode(repr(courselike_key).encode('utf-8')).decode('utf-8')
     course_dir = data_root / subdir
     try:
         self.status.set_state(u'Unpacking')
@@ -811,7 +811,7 @@ def import_olx(self, user_id, course_key_string, archive_path, archive_name, lan
     try:
         tar_file = tarfile.open(temp_filepath)
         try:
-            safetar_extractall(tar_file, (course_dir + u'/').encode(u'utf-8'))
+            safetar_extractall(tar_file, (course_dir + u'/'))
         except SuspiciousOperation as exc:
             LOGGER.info(u'Course import %s: Unsafe tar file - %s', courselike_key, exc.args[0])
             with respect_language(language):

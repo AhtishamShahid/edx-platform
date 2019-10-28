@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Tests for the teams API at the HTTP request level."""
-from __future__ import absolute_import
+"""
+Tests for the teams API at the HTTP request level.
+"""
+from __future__ import absolute_import, unicode_literals
 
 import json
 import unittest
@@ -20,7 +22,7 @@ from search.search_engine_base import SearchEngine
 from six.moves import range
 
 from common.test.utils import skip_signal
-from courseware.tests.factories import StaffFactory
+from lms.djangoapps.courseware.tests.factories import StaffFactory
 from openedx.core.djangoapps.django_comment_common.models import FORUM_ROLE_COMMUNITY_TA, Role
 from openedx.core.djangoapps.django_comment_common.utils import seed_permissions_roles
 from student.models import CourseEnrollment
@@ -180,17 +182,17 @@ class TestDashboard(SharedModuleStoreTestCase):
         # Check that initially list of user teams in course one is empty
         course_one_teams_url = reverse('teams_dashboard', args=[self.course.id])
         response = self.client.get(course_one_teams_url)
-        self.assertIn('"teams": {"count": 0', response.content)  # pylint: disable=unicode-format-string
+        self.assertContains(response, '"teams": {"count": 0')
         # Add user to a course one team
         course_one_team.add_user(self.user)
 
         # Check that list of user teams in course one is not empty, it is one now
         response = self.client.get(course_one_teams_url)
-        self.assertIn('"teams": {"count": 1', response.content)  # pylint: disable=unicode-format-string
+        self.assertContains(response, '"teams": {"count": 1')
         # Check that list of user teams in course two is still empty
         course_two_teams_url = reverse('teams_dashboard', args=[course_two.id])
         response = self.client.get(course_two_teams_url)
-        self.assertIn('"teams": {"count": 0', response.content)  # pylint: disable=unicode-format-string
+        self.assertContains(response, '"teams": {"count": 0')
 
 
 class TeamAPITestCase(APITestCase, SharedModuleStoreTestCase):

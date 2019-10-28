@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 import logging
+import six
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -47,7 +48,8 @@ CONTAINER_TEMPLATES = [
     "add-xblock-component", "add-xblock-component-button", "add-xblock-component-menu",
     "add-xblock-component-support-legend", "add-xblock-component-support-level", "add-xblock-component-menu-problem",
     "xblock-string-field-editor", "xblock-access-editor", "publish-xblock", "publish-history",
-    "unit-outline", "container-message", "container-access", "license-selector",
+    "unit-outline", "container-message", "container-access", "license-selector", "copy-clipboard-button",
+    "edit-title-button",
 ]
 
 
@@ -130,9 +132,10 @@ def container_handler(request, usage_key_string):
 
             assert unit is not None, "Could not determine unit page"
             subsection = get_parent_xblock(unit)
-            assert subsection is not None, "Could not determine parent subsection from unit " + unicode(unit.location)
+            assert subsection is not None, "Could not determine parent subsection from unit " + six.text_type(
+                unit.location)
             section = get_parent_xblock(subsection)
-            assert section is not None, "Could not determine ancestor section from unit " + unicode(unit.location)
+            assert section is not None, "Could not determine ancestor section from unit " + six.text_type(unit.location)
 
             # Fetch the XBlock info for use by the container page. Note that it includes information
             # about the block's ancestors and siblings for use by the Unit Outline.

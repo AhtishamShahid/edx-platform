@@ -265,7 +265,10 @@ class VideoStudentViewHandlers(object):
 
         if add_attachment_header:
             headerlist.append(
-                ('Content-Disposition', 'attachment; filename="{}"'.format(filename.encode('utf-8')))
+                (
+                    'Content-Disposition',
+                    'attachment; filename="{}"'.format(filename.encode('utf-8') if six.PY2 else filename)
+                )
             )
 
         response = Response(
@@ -463,7 +466,7 @@ class VideoStudioViewHandlers(object):
                         # Convert SRT transcript into an SJSON format
                         # and upload it to S3.
                         sjson_subs = Transcript.convert(
-                            content=transcript_file.read(),
+                            content=transcript_file.read().decode('utf-8'),
                             input_format=Transcript.SRT,
                             output_format=Transcript.SJSON
                         )
@@ -531,7 +534,12 @@ class VideoStudioViewHandlers(object):
                         video=self, lang=language, output_format=Transcript.SRT
                     )
                     response = Response(transcript_content, headerlist=[
-                        ('Content-Disposition', 'attachment; filename="{}"'.format(transcript_name.encode('utf8'))),
+                        (
+                            'Content-Disposition',
+                            'attachment; filename="{}"'.format(
+                                transcript_name.encode('utf8') if six.PY2 else transcript_name
+                            )
+                        ),
                         ('Content-Language', language),
                         ('Content-Type', mime_type)
                     ])

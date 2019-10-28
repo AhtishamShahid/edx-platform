@@ -14,8 +14,8 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from opaque_keys.edx.keys import CourseKey
 from web_fragments.fragment import Fragment
 
-from courseware.access import has_access
-from courseware.courses import can_self_enroll_in_course, get_course_info_section, get_course_with_access
+from lms.djangoapps.courseware.access import has_access
+from lms.djangoapps.courseware.courses import can_self_enroll_in_course, get_course_info_section, get_course_with_access
 from lms.djangoapps.commerce.utils import EcommerceService
 from lms.djangoapps.course_goals.api import (
     get_course_goal,
@@ -30,7 +30,7 @@ from openedx.core.djangoapps.plugin_api.views import EdxFragmentView
 from openedx.core.djangoapps.util.maintenance_banner import add_maintenance_banner
 from openedx.features.course_duration_limits.access import generate_course_expired_fragment
 from openedx.features.course_experience.course_tools import CourseToolsPluginManager
-from openedx.features.course_experience.utils import get_first_purchase_offer_banner_fragment
+from openedx.features.discounts.utils import get_first_purchase_offer_banner_fragment
 from openedx.features.discounts.utils import format_strikeout_price
 from student.models import CourseEnrollment
 from util.views import ensure_valid_course_key

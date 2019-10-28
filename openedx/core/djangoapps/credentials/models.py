@@ -8,6 +8,7 @@ import six
 from config_models.models import ConfigurationModel
 from django.conf import settings
 from django.db import models
+from django.utils.encoding import python_2_unicode_compatible
 from django.utils.translation import ugettext_lazy as _
 from six.moves.urllib.parse import urljoin  # pylint: disable=import-error
 
@@ -16,6 +17,7 @@ from openedx.core.djangoapps.site_configuration import helpers
 API_VERSION = 'v2'
 
 
+@python_2_unicode_compatible
 class CredentialsApiConfig(ConfigurationModel):
     """
     Manages configuration for connecting to the Credential service and using its
@@ -33,11 +35,11 @@ class CredentialsApiConfig(ConfigurationModel):
 
     internal_service_url = models.URLField(
         verbose_name=_('Internal Service URL'),
-        help_text='DEPRECATED: Use the setting CREDENTIALS_INTERNAL_SERVICE_URL.'
+        help_text=u'DEPRECATED: Use the setting CREDENTIALS_INTERNAL_SERVICE_URL.'
     )
     public_service_url = models.URLField(
         verbose_name=_('Public Service URL'),
-        help_text='DEPRECATED: Use the setting CREDENTIALS_PUBLIC_SERVICE_URL.'
+        help_text=u'DEPRECATED: Use the setting CREDENTIALS_PUBLIC_SERVICE_URL.'
     )
 
     enable_learner_issuance = models.BooleanField(
@@ -62,7 +64,7 @@ class CredentialsApiConfig(ConfigurationModel):
         )
     )
 
-    def __unicode__(self):
+    def __str__(self):
         return self.public_api_url
 
     @property
@@ -114,6 +116,7 @@ class CredentialsApiConfig(ConfigurationModel):
         return self.cache_ttl > 0
 
 
+@python_2_unicode_compatible
 class NotifyCredentialsConfig(ConfigurationModel):
     """
     Manages configuration for a run of the notify_credentials management command.
@@ -131,5 +134,5 @@ class NotifyCredentialsConfig(ConfigurationModel):
         default='',
     )
 
-    def __unicode__(self):
+    def __str__(self):
         return six.text_type(self.arguments)

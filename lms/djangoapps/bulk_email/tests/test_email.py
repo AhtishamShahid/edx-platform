@@ -24,7 +24,7 @@ from mock import Mock, patch
 from bulk_email.models import BulkEmailFlag, Optout
 from bulk_email.tasks import _get_course_email_context, _get_source_address
 from course_modes.models import CourseMode
-from courseware.tests.factories import InstructorFactory, StaffFactory
+from lms.djangoapps.courseware.tests.factories import InstructorFactory, StaffFactory
 from lms.djangoapps.instructor_task.subtasks import update_subtask_status
 from openedx.core.djangoapps.course_groups.cohorts import add_user_to_cohort
 from openedx.core.djangoapps.course_groups.models import CourseCohort
@@ -100,7 +100,7 @@ class EmailSendFromDashboardTestCase(SharedModuleStoreTestCase):
         response = self.client.get(url)
         email_section = '<div class="vert-left send-email" id="section-send-email">'
         # If this fails, it is likely because bulk_email.api.is_bulk_email_feature_enabled is set to False
-        self.assertIn(email_section, response.content)
+        self.assertContains(response, email_section)
 
     @classmethod
     def setUpClass(cls):
@@ -158,9 +158,9 @@ class SendEmailWithMockedUgettextMixin(object):
 
             e.g.
 
-            >>> mock_ugettext('Hello') == '@AR Hello@'
+            >>> mock_ugettext('Hello') == 'AR Hello'
             """
-            return u'@{lang} {text}@'.format(
+            return u'{lang} {text}'.format(
                 lang=get_language().upper(),
                 text=text,
             )
@@ -193,7 +193,7 @@ class LocalizedFromAddressPlatformLangTestCase(SendEmailWithMockedUgettextMixin,
         """
         self.assertIsNone(self.course.language)  # Sanity check
         message = self.send_email()
-        self.assertRegexpMatches(message.from_email, '@EO .* Course Staff@')
+        self.assertRegexpMatches(message.from_email, 'EO .* Course Staff')
 
 
 @patch.dict(settings.FEATURES, {'ENABLE_INSTRUCTOR_EMAIL': True, 'REQUIRE_COURSE_EMAIL_AUTH': False})
@@ -225,7 +225,7 @@ class LocalizedFromAddressCourseLangTestCase(SendEmailWithMockedUgettextMixin, E
         The course language should override the platform's.
         """
         message = self.send_email()
-        self.assertRegexpMatches(message.from_email, '@AR .* Course Staff@')
+        self.assertRegexpMatches(message.from_email, 'AR .* Course Staff')
 
 
 @patch('bulk_email.models.html_to_text', Mock(return_value='Mocking CourseEmail.text_message', autospec=True))

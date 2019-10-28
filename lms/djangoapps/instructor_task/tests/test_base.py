@@ -22,8 +22,8 @@ from opaque_keys.edx.locations import Location
 from six import text_type
 
 from capa.tests.response_xml_factory import OptionResponseXMLFactory
-from courseware.model_data import StudentModule
-from courseware.tests.tests import LoginEnrollmentTestCase
+from lms.djangoapps.courseware.model_data import StudentModule
+from lms.djangoapps.courseware.tests.tests import LoginEnrollmentTestCase
 from lms.djangoapps.instructor_task.api_helper import encode_problem_and_student_input
 from lms.djangoapps.instructor_task.models import PROGRESS, QUEUING, ReportStore
 from lms.djangoapps.instructor_task.tests.factories import InstructorTaskFactory
@@ -383,9 +383,9 @@ class TestReportMixin(object):
         to four decimal places.
         """
         extracted = {}
-        for key, value in dictionary.items():
+        for key in list(dictionary):
             try:
-                float(value)
+                float(dictionary[key])
                 extracted[key] = round(float(dictionary.pop(key)), 4)
             except ValueError:
                 pass

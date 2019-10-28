@@ -182,6 +182,12 @@ CACHES = {
     },
 }
 
+############################### BLOCKSTORE #####################################
+# Blockstore tests
+RUN_BLOCKSTORE_TESTS = os.environ.get('EDXAPP_RUN_BLOCKSTORE_TESTS', 'no').lower() in ('true', 'yes', '1')
+BLOCKSTORE_API_URL = os.environ.get('EDXAPP_BLOCKSTORE_API_URL', "http://edx.devstack.blockstore-test:18251/api/v1/")
+BLOCKSTORE_API_AUTH_TOKEN = os.environ.get('EDXAPP_BLOCKSTORE_API_AUTH_TOKEN', 'edxapp-test-key')
+
 ################################# CELERY ######################################
 
 CELERY_ALWAYS_EAGER = True
@@ -302,3 +308,5 @@ derive_settings(__name__)
 SYSTEM_WIDE_ROLE_CLASSES = os.environ.get("SYSTEM_WIDE_ROLE_CLASSES", [])
 
 DEFAULT_MOBILE_AVAILABLE = True
+
+PROCTORING_SETTINGS = {}

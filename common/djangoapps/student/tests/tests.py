@@ -234,7 +234,7 @@ class CourseEndingTest(TestCase):
         Tests that the higher of the persisted grade and the grade
         from the certs table is used on the learner dashboard.
         """
-        expected_grade = max(persisted_grade, cert_grade)
+        expected_grade = max(filter(lambda x: x is not None, [persisted_grade, cert_grade]))
         user = Mock(username="fred", id="1")
         survey_url = "http://a_survey.com"
         course = Mock(
@@ -395,7 +395,7 @@ class DashboardTest(ModuleStoreTestCase):
         self.assertIsNone(course_mode_info['days_for_upsell'])
 
     @unittest.skipUnless(settings.ROOT_URLCONF == 'lms.urls', 'Test only valid in lms')
-    @patch('courseware.views.index.log.warning')
+    @patch('lms.djangoapps.courseware.views.index.log.warning')
     @patch.dict('django.conf.settings.FEATURES', {'ENABLE_PAID_COURSE_REGISTRATION': True})
     def test_blocked_course_scenario(self, log_warning):
 
@@ -433,13 +433,13 @@ class DashboardTest(ModuleStoreTestCase):
         response = self.client.get(redeem_url)
         self.assertEquals(response.status_code, 200)
         # check button text
-        self.assertIn('Activate Course Enrollment', response.content)
+        self.assertContains(response, 'Activate Course Enrollment')
 
         #now activate the user by enrolling him/her to the course
         response = self.client.post(redeem_url)
         self.assertEquals(response.status_code, 200)
         response = self.client.get(reverse('dashboard'))
-        self.assertIn('You can no longer access this course because payment has not yet been received', response.content)
+        self.assertContains(response, 'You can no longer access this course because payment has not yet been received')
         optout_object = Optout.objects.filter(user=self.user, course_id=self.course.id)
         self.assertEqual(len(optout_object), 1)
 
@@ -457,7 +457,10 @@ class DashboardTest(ModuleStoreTestCase):
         invoice.save()
 
         response = self.client.get(reverse('dashboard'))
-        self.assertNotIn('You can no longer access this course because payment has not yet been received', response.content)
+        self.assertNotContains(
+            response,
+            'You can no longer access this course because payment has not yet been received',
+        )
 
     @unittest.skipUnless(settings.ROOT_URLCONF == 'lms.urls', 'Test only valid in lms')
     def test_linked_in_add_to_profile_btn_not_appearing_without_config(self):
@@ -490,7 +493,7 @@ class DashboardTest(ModuleStoreTestCase):
         response = self.client.get(reverse('dashboard'))
 
         self.assertEquals(response.status_code, 200)
-        self.assertNotIn('Add Certificate to LinkedIn', response.content)
+        self.assertNotContains(response, 'Add Certificate to LinkedIn')
 
         response_url = 'http://www.linkedin.com/profile/add?_ed='
         self.assertNotContains(response, escape(response_url))
@@ -534,7 +537,7 @@ class DashboardTest(ModuleStoreTestCase):
         response = self.client.get(reverse('dashboard'))
 
         self.assertEquals(response.status_code, 200)
-        self.assertIn('Add Certificate to LinkedIn', response.content)
+        self.assertContains(response, 'Add Certificate to LinkedIn')
 
         expected_url = (
             u'http://www.linkedin.com/profile/add'

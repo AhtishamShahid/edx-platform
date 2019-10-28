@@ -7,11 +7,13 @@ from datetime import datetime, timedelta
 
 import ddt
 import pytz
+from django.contrib.sites.models import Site
 from django.utils.timezone import now
 from mock import Mock, patch
 
 from course_modes.models import CourseMode
 from course_modes.tests.factories import CourseModeFactory
+from enterprise.models import EnterpriseCustomer, EnterpriseCustomerUser
 from entitlements.tests.factories import CourseEntitlementFactory
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from openedx.core.djangoapps.waffle_utils.testutils import override_waffle_flag
@@ -32,6 +34,7 @@ class TestApplicability(ModuleStoreTestCase):
 
     def setUp(self):
         super(TestApplicability, self).setUp()
+        self.site, _ = Site.objects.get_or_create(domain='example.com')
         self.user = UserFactory.create()
         self.course = CourseFactory.create(run='test', display_name='test')
         CourseModeFactory.create(course_id=self.course.id, mode_slug='verified')
@@ -50,6 +53,12 @@ class TestApplicability(ModuleStoreTestCase):
         """
         Ensure first purchase offer banner only displays for courses with a non-expired verified mode
         """
+        CourseEnrollmentFactory(
+            is_active=True,
+            course_id=self.course.id,
+            user=self.user
+        )
+
         applicability = can_receive_discount(user=self.user, course=self.course)
         self.assertEqual(applicability, True)
 
@@ -83,6 +92,12 @@ class TestApplicability(ModuleStoreTestCase):
         """
         Ensure that only users who have not already purchased courses receive the discount.
         """
+        CourseEnrollmentFactory(
+            is_active=True,
+            course_id=self.course.id,
+            user=self.user
+        )
+
         for mode in existing_enrollments:
             CourseEnrollmentFactory.create(mode=mode, user=self.user)
 
@@ -99,11 +114,34 @@ class TestApplicability(ModuleStoreTestCase):
         """
         Ensure that only users who have not already purchased courses receive the discount.
         """
+        CourseEnrollmentFactory(
+            is_active=True,
+            course_id=self.course.id,
+            user=self.user
+        )
+
         if entitlement_mode is not None:
             CourseEntitlementFactory.create(mode=entitlement_mode, user=self.user)
 
         applicability = can_receive_discount(user=self.user, course=self.course)
         assert applicability == (entitlement_mode is None)
+
+    @override_waffle_flag(DISCOUNT_APPLICABILITY_FLAG, active=True)
+    def test_can_receive_discount_false_enterprise(self):
+        """
+        Ensure that enterprise users do not receive the discount.
+        """
+        enterprise_customer = EnterpriseCustomer.objects.create(
+            name='Test EnterpriseCustomer',
+            site=self.site
+        )
+        EnterpriseCustomerUser.objects.create(
+            user_id=self.user.id,
+            enterprise_customer=enterprise_customer
+        )
+
+        applicability = can_receive_discount(user=self.user, course=self.course)
+        self.assertEqual(applicability, False)
 
     @override_waffle_flag(DISCOUNT_APPLICABILITY_FLAG, active=True)
     def test_holdback_denies_discount(self):
@@ -128,6 +166,6 @@ class TestApplicability(ModuleStoreTestCase):
         with patch('openedx.features.discounts.applicability.stable_bucketing_hash_group', return_value=0):
             with patch(
                 'openedx.features.discounts.applicability.datetime',
-                Mock(now=Mock(return_value=datetime(2020, 8, 1, 0, 1, tzinfo=pytz.UTC)))
+                Mock(now=Mock(return_value=datetime(2020, 8, 1, 0, 1, tzinfo=pytz.UTC)), wraps=datetime),
             ):
                 assert not _is_in_holdback(self.user)

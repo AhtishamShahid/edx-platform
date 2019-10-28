@@ -11,7 +11,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.test.utils import override_settings
 from django.utils.http import int_to_base36
 
-from courseware.tests.helpers import LoginEnrollmentTestCase
+from lms.djangoapps.courseware.tests.helpers import LoginEnrollmentTestCase
 from util.password_policy_validators import create_validator_config
 
 
@@ -51,7 +51,7 @@ class TestPasswordReset(LoginEnrollmentTestCase):
         """
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context_data['validlink'], valid_link)
-        self.assertIn(error_message, response.content)
+        self.assertContains(response, error_message)
 
     @override_settings(AUTH_PASSWORD_VALIDATORS=[
         create_validator_config('util.password_policy_validators.MinimumLengthValidator', {'min_length': 6})
@@ -75,10 +75,7 @@ class TestPasswordReset(LoginEnrollmentTestCase):
             'new_password2': 'foo',
         }, follow=True)
 
-        self.assertNotIn(
-            success_msg,
-            resp.content
-        )
+        self.assertNotContains(resp, success_msg)
 
         # try to reset password with a long enough password
         user = User.objects.get(email=staff_email)
@@ -91,7 +88,7 @@ class TestPasswordReset(LoginEnrollmentTestCase):
             'new_password2': 'foofoo',
         }, follow=True)
 
-        self.assertIn(success_msg, resp.content)
+        self.assertContains(resp, success_msg)
 
     @ddt.data(
         ('foo', 'foobar', 'Error in resetting your password. Please try again.'),

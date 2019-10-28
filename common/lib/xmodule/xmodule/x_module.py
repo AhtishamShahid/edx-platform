@@ -12,6 +12,7 @@ from pkg_resources import resource_exists, resource_isdir, resource_listdir, res
 import six
 import yaml
 from contracts import contract, new_contract
+from django.utils.encoding import python_2_unicode_compatible
 from lazy import lazy
 from lxml import etree
 from opaque_keys.edx.asides import AsideDefinitionKeyV2, AsideUsageKeyV2
@@ -921,6 +922,7 @@ class XModuleToXBlockMixin(object):
 
 
 @XBlock.needs("i18n")
+@python_2_unicode_compatible
 class XModule(XModuleToXBlockMixin, HTMLSnippet, XModuleMixin):
     """ Implements a generic learning module.
 
@@ -965,7 +967,7 @@ class XModule(XModuleToXBlockMixin, HTMLSnippet, XModuleMixin):
     def runtime(self, value):  # pylint: disable=arguments-differ
         self._runtime = value
 
-    def __unicode__(self):
+    def __str__(self):
         # xss-lint: disable=python-wrap-html
         return u'<x_module(id={0})>'.format(self.id)
 
@@ -1126,6 +1128,17 @@ class XModuleDescriptorToXBlockMixin(object):
         return block
 
     @classmethod
+    def parse_xml_new_runtime(cls, node, runtime, keys):
+        """
+        This XML lives within Blockstore and the new runtime doesn't need this
+        legacy XModule code. Use the "normal" XBlock parsing code.
+        """
+        try:
+            return super(XModuleDescriptorToXBlockMixin, cls).parse_xml_new_runtime(node, runtime, keys)
+        except AttributeError:
+            return super(XModuleDescriptorToXBlockMixin, cls).parse_xml(node, runtime, keys, id_generator=None)
+
+    @classmethod
     def from_xml(cls, xml_data, system, id_generator):
         """
         Creates an instance of this descriptor from the supplied xml_data.
@@ -1241,6 +1254,9 @@ class XModuleDescriptor(XModuleDescriptorToXBlockMixin, HTMLSnippet, ResourceTem
 
     # =============================== BUILTIN METHODS ==========================
     def __eq__(self, other):
+        """
+        Is this XModule effectively equal to the other instance?
+        """
         return (hasattr(other, 'scope_ids') and
                 self.scope_ids == other.scope_ids and
                 list(self.fields.keys()) == list(other.fields.keys()) and
@@ -1469,30 +1485,7 @@ class DescriptorSystem(MetricsMixin, ConfigurableFragmentWrapper, Runtime):
             Used for example to get a list of all non-fatal problems on course
             load, and display them to the user.
 
-            A function of (error_msg). errortracker.py provides a
-            handy make_error_tracker() function.
-
-            Patterns for using the error handler:
-               try:
-                  x = access_some_resource()
-                  check_some_format(x)
-               except SomeProblem as err:
-                  msg = 'Grommet {0} is broken: {1}'.format(x, str(err))
-                  log.warning(msg)  # don't rely on tracker to log
-                        # NOTE: we generally don't want content errors logged as errors
-                  self.system.error_tracker(msg)
-                  # work around
-                  return 'Oops, couldn't load grommet'
-
-               OR, if not in an exception context:
-
-               if not check_something(thingy):
-                  msg = "thingy {0} is broken".format(thingy)
-                  log.critical(msg)
-                  self.system.error_tracker(msg)
-
-               NOTE: To avoid duplication, do not call the tracker on errors
-               that you're about to re-raise---let the caller track them.
+            See errortracker.py for more documentation
 
         get_policy: a function that takes a usage id and returns a dict of
             policy to apply.

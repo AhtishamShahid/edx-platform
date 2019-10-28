@@ -14,11 +14,6 @@ futures ; python_version == "2.7"
 python-openid ; python_version == "2.7"
 pysqlite ; python_version == "2.7"
 
-# pip-tools 3.9.0 has a few problems:
-#   https://github.com/jazzband/pip-tools/issues/851
-#   https://github.com/jazzband/pip-tools/issues/852
-pip-tools==3.8.0
-
 # Convert text markup to HTML; used in capa problems, forums, and course wikis; pin Markdown version as tests failed for its upgrade to latest release
 Markdown==2.6.11
 
@@ -82,3 +77,8 @@ numpy<1.17.0
 #  jsondiff==1.2.0 (from -r requirements/edx/base.txt (line 146))
 jsondiff==1.1.1
 
+
+# Constraining this because when we rolled it to edx.org production
+# we had a lot of memory issues and gunicorn workers started running
+# out of memory.  ARCH-1210
+edx-drf-extensions==2.4.0

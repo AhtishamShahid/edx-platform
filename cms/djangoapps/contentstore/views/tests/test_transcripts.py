@@ -35,7 +35,7 @@ from xmodule.video_module.transcripts_utils import (
 TEST_DATA_CONTENTSTORE = copy.deepcopy(settings.CONTENTSTORE)
 TEST_DATA_CONTENTSTORE['DOC_STORE_CONFIG']['db'] = 'test_xcontent_%s' % uuid4().hex
 
-SRT_TRANSCRIPT_CONTENT = b"""0
+SRT_TRANSCRIPT_CONTENT = u"""0
 00:00:10,500 --> 00:00:13,000
 Elephant's Dream
 
@@ -160,7 +160,7 @@ class TestUploadTranscripts(BaseTranscripts):
         super(TestUploadTranscripts, self).setUp()
         self.contents = {
             'good': SRT_TRANSCRIPT_CONTENT,
-            'bad': 'Some BAD data',
+            'bad': u'Some BAD data',
         }
         # Create temporary transcript files
         self.good_srt_file = self.create_transcript_file(content=self.contents['good'], suffix='.srt')
@@ -191,8 +191,9 @@ class TestUploadTranscripts(BaseTranscripts):
             wrapped_content = wrapped_content.encode('utf-8-sig')
             # Verify that ufeff(BOM) character is in content.
             self.assertIn(BOM_UTF8, wrapped_content)
-
-        transcript_file.write(wrapped_content)
+            transcript_file.write(wrapped_content)
+        else:
+            transcript_file.write(wrapped_content.encode('utf-8'))
         transcript_file.seek(0)
 
         return transcript_file
@@ -260,7 +261,7 @@ class TestUploadTranscripts(BaseTranscripts):
 
         # Verify transcript content
         actual_transcript = get_video_transcript_content(video.edx_video_id, language_code=u'en')
-        actual_sjson_content = json.loads(actual_transcript['content'])
+        actual_sjson_content = json.loads(actual_transcript['content'].decode('utf-8'))
         expected_sjson_content = json.loads(Transcript.convert(
             self.contents['good'],
             input_format=Transcript.SRT,
@@ -448,7 +449,7 @@ class TestChooseTranscripts(BaseTranscripts):
 
         # Verify transcript content
         actual_transcript = get_video_transcript_content(video.edx_video_id, language_code=u'en')
-        actual_sjson_content = json.loads(actual_transcript['content'])
+        actual_sjson_content = json.loads(actual_transcript['content'].decode('utf-8'))
         expected_sjson_content = json.loads(self.sjson_subs)
         self.assertDictEqual(actual_sjson_content, expected_sjson_content)
 
@@ -565,7 +566,7 @@ class TestRenameTranscripts(BaseTranscripts):
 
         # Verify transcript content
         actual_transcript = get_video_transcript_content(video.edx_video_id, language_code=u'en')
-        actual_sjson_content = json.loads(actual_transcript['content'])
+        actual_sjson_content = json.loads(actual_transcript['content'].decode('utf-8'))
         expected_sjson_content = json.loads(self.sjson_subs)
         self.assertDictEqual(actual_sjson_content, expected_sjson_content)
 
@@ -693,7 +694,7 @@ class TestReplaceTranscripts(BaseTranscripts):
 
         # Verify transcript content
         actual_transcript = get_video_transcript_content(video.edx_video_id, language_code=u'en')
-        actual_sjson_content = json.loads(actual_transcript['content'])
+        actual_sjson_content = json.loads(actual_transcript['content'].decode('utf-8'))
         expected_sjson_content = json.loads(SJSON_TRANSCRIPT_CONTENT)
         self.assertDictEqual(actual_sjson_content, expected_sjson_content)
 
@@ -790,7 +791,7 @@ class TestDownloadTranscripts(BaseTranscripts):
         """
         self.assertEqual(response.status_code, expected_status_code)
         if expected_content:
-            self.assertEqual(response.content, expected_content)
+            assert response.content.decode('utf-8') == expected_content
 
     def test_download_youtube_transcript_success(self):
         """
