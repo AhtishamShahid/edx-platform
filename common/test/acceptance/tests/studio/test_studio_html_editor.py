@@ -373,21 +373,21 @@ class HTMLComponentEditorTests(ContainerBase):
 
     def test_image_modal(self):
         """
-        Scenario:
-        Add image in tiny mce text editor and save ,
-        Edit the component again
-        Add image in tiny mce text editor and save it again ,
+        Scenario: TinyMCE text editor allows to add multiple images.
+        Given I have created a Blank text editor Page.
+        I add an image in TinyMCE text editor and hit save button.
+        I edit the component again.
+        I add another image in TinyMCE text editor and hit save button again.
+            Then it is expected that both images show up on page.
         """
-        # File path for uploader
-
-        file_names = [u'file-0.png', u'file-1.png']
-
+        image_file_names = [u'file-0.png', u'file-1.png']
         self._add_component('Text')
 
-        for file_name in file_names:
+        for image in image_file_names:
+            image_path = os.path.join(UPLOAD_FILE_DIR, image)
             self.container_page.edit()
             self.html_editor.open_image_modal()
-            self.html_editor.upload_image(os.path.join(upload_file_dir, file_name))
+            self.html_editor.upload_image(image_path)
             self.html_editor.save_content()
             self.html_editor.wait_for_ajax()
 

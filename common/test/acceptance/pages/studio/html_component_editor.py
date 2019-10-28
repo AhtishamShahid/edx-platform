@@ -244,27 +244,27 @@ class HtmlXBlockEditorView(XBlockEditorView):
         """
         Clicks and in insert image button
         """
-        self.q(css='[aria-label="Insert/Edit Image"]').click()
+        # self.q(css='[aria-label="Insert/Edit Image"]').click()
+        click_css(self, 'div i[class="mce-ico mce-i-image"]')
 
     def upload_image(self, file_name):
         """
-         Uploads image,description and click save to add image in tiny mce editor
+        Upload the image via TinyMCE editor.
+        Upload image and add description and click save to upload image via TinyMCE editor.
         """
-
-        # css selector for file uploader
         file_input_css = "[type='file']"
 
-        # select and change visibility and change value of file input
+        # select file input element and change visibility to add file.
         self.browser.execute_script('$("{}").css("display","block");'.format(file_input_css))
         self.wait_for_element_visibility(file_input_css, "Input is visible")
         self.q(css=file_input_css).results[0].send_keys(file_name)
         self.wait_for_element_visibility('#imageDescription', 'Upload form is visible.')
 
-        # add value in description field.
         self.q(css='#imageDescription').results[0].send_keys('test image')
 
         # click on insert image button
-        self.q(css='.btn-primary').click()
+        click_css(self, '.modal-footer .btn-primary')
+        # self.q(css='.modal-footer .btn-primary').click()
 
 
 class HTMLEditorIframe(XBlockEditorView):
