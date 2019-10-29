@@ -40,6 +40,12 @@ describe('HTMLEditingDescriptor', function() {
       expect(visualEditorStub.getContent()).toEqual('text /c4x/foo/bar/asset/image.jpg');
     });
     it('Enables spellcheck', () => expect($('.html-editor iframe')[0].contentDocument.body.spellcheck).toBe(true));
+    it('Retains formatting of foreign language characters', function () {
+      const editorData= 'Programación_Gas.pptx'
+      this.descriptor.getVisualEditor().setContent(editorData)
+      const content = this.descriptor.getVisualEditor().getContent()
+      expect(content.indexOf(editorData) !== -1).toBe(true);
+    });
   });
   describe('Raw HTML Editor', function() {
     beforeEach(function() {
