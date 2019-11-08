@@ -73,7 +73,7 @@ function inArray(key, arr) {
         path: codemirrorPath,
         indentOnInit: false,
         config: {// Default config
-            mode: 'htmlmixed',
+            mode: 'text/html',
             lineNumbers: true,
             lineWrapping: true,
             indentUnit: 1,
@@ -85,7 +85,7 @@ function inArray(key, arr) {
 // MODIFIED FOR EDX VENDOR FILE LOCATIONS.
             'codemirror-compressed.js',
 //			'addon/edit/matchbrackets.js', Chose not to enable
-//			'mode/xml/xml.js', In compressed
+// 			'CodeMirror/mode/xml/xml.js',
 //			'mode/javascript/javascript.js', In compressed
 //			'mode/css/css.js', In compressed
 //			'mode/htmlmixed/htmlmixed.js', In compressed
@@ -95,7 +95,7 @@ function inArray(key, arr) {
 //			'addon/selection/active-line.js' Chose not to enable
         ],
         cssFiles: [
-            'CodeMirror/codemirror.css'
+            'CodeMirror/lib/codemirror.css'
 //            'CodeMirror/addons/dialog/dialog.css' In compressed
         ]
     };
