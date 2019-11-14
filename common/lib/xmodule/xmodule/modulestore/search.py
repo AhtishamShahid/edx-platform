@@ -113,6 +113,11 @@ def path_to_location(modulestore, usage_key, full_path=False):
                     # this calls get_children rather than just children b/c old mongo includes private children
                     # in children but not in get_children
                     child_locs = [c.location for c in section_desc.get_children()]
+
+                    for index, child in enumerate(child_locs):
+                        item = modulestore.get_item(child)
+                        if item.visible_to_staff_only:
+                            del child_locs[index]
                     # positions are 1-indexed, and should be strings to be consistent with
                     # url parsing.
                     position_list.append(str(child_locs.index(path[path_index + 1]) + 1))
