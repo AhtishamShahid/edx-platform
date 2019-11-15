@@ -5,12 +5,13 @@ from logging import getLogger
 
 from six.moves import range
 
+from lms.djangoapps.courseware.masquerade import MASQUERADE_SETTINGS_KEY
 from .exceptions import ItemNotFoundError, NoPathToItem
 
 LOGGER = getLogger(__name__)
 
 
-def path_to_location(modulestore, usage_key, full_path=False):
+def path_to_location(modulestore, usage_key, request=None, full_path=False):
     '''
     Try to find a course_id/chapter/section[/position] path to location in
     modulestore.  The courseware insists that the first level in the course is
@@ -112,12 +113,15 @@ def path_to_location(modulestore, usage_key, full_path=False):
                     section_desc = modulestore.get_item(path[path_index])
                     # this calls get_children rather than just children b/c old mongo includes private children
                     # in children but not in get_children
-                    child_locs = [c.location for c in section_desc.get_children()]
-
-                    for index, child in enumerate(child_locs):
-                        item = modulestore.get_item(child)
-                        if item.visible_to_staff_only:
-                            del child_locs[index]
+                    child_locs = []
+                    for child in section_desc.get_children():
+                        if request is not None:
+                            # check if staff is masquerading as student
+                            masquerade_data = request.session.get(MASQUERADE_SETTINGS_KEY, {})
+                            masquerade_as_student = masquerade_data and masquerade_data[course_id].role == 'student'
+                            # skip visible to staff only indexes
+                            if (request.user.is_staff and not masquerade_as_student) or not child.visible_to_staff_only:
+                                child_locs.append(child.location)
                     # positions are 1-indexed, and should be strings to be consistent with
                     # url parsing.
                     position_list.append(str(child_locs.index(path[path_index + 1]) + 1))

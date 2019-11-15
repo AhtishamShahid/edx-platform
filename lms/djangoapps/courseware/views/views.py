@@ -133,7 +133,6 @@ from ..module_render import get_module, get_module_by_usage_id, get_module_for_d
 
 log = logging.getLogger("edx.courseware")
 
-
 # Only display the requirements on learner dashboard for
 # credit and verified modes.
 REQUIREMENTS_DISPLAY_MODES = CourseMode.CREDIT_MODES + [CourseMode.VERIFIED]
@@ -355,7 +354,7 @@ def jump_to(_request, course_id, location):
     except InvalidKeyError:
         raise Http404(u"Invalid course_key or usage_key")
     try:
-        redirect_url = get_redirect_url(course_key, usage_key)
+        redirect_url = get_redirect_url(course_key, usage_key, _request)
     except ItemNotFoundError:
         raise Http404(u"No data at this location: {0}".format(usage_key))
     except NoPathToItem:
@@ -1609,7 +1608,6 @@ FINANCIAL_ASSISTANCE_HEADER = _(
     percent_sign="%",
     platform_name=configuration_helpers.get_value('PLATFORM_NAME', settings.PLATFORM_NAME)
 ).split('\n')
-
 
 FA_INCOME_LABEL = _('Annual Household Income')
 FA_REASON_FOR_APPLYING_LABEL = 'Tell us about your current financial situation. Why do you need assistance?'
