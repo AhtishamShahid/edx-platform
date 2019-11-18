@@ -215,6 +215,30 @@ class TestJumpTo(ModuleStoreTestCase):
         response = self.client.get(jumpto_url)
         self.assertEqual(response.status_code, 404)
 
+    def test_jump_to_from_with_staff_only_content(self):
+        course = CourseFactory.create()
+        chapter = ItemFactory.create(category='chapter', parent_location=course.location)
+        section = ItemFactory.create(category='sequential', parent_location=chapter.location)
+        vertical1 = ItemFactory.create(category='vertical', parent_location=section.location)
+        vertical2 = ItemFactory.create(category='vertical', parent_location=section.location,
+                                       metadata=dict(visible_to_staff_only=True))
+        vertical3 = ItemFactory.create(category='vertical', parent_location=section.location)
+
+        # internal position of vertical3 will be 2 because staff only content is skipped
+        expected = '/courses/{course_id}/courseware/{chapter_id}/{section_id}/2?{activate_block_id}'.format(
+            course_id=six.text_type(course.id),
+            chapter_id=chapter.url_name,
+            section_id=section.url_name,
+            activate_block_id=urlencode({'activate_block_id': six.text_type(vertical3.location)})
+        )
+        jumpto_url = '{0}/{1}/jump_to/{2}'.format(
+            '/courses',
+            six.text_type(course.id),
+            six.text_type(vertical3.location),
+        )
+        response = self.client.get(jumpto_url)
+        self.assertRedirects(response, expected, status_code=302, target_status_code=302)
+
 
 @ddt.ddt
 class IndexQueryTestCase(ModuleStoreTestCase):
