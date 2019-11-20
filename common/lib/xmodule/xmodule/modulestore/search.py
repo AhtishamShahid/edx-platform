@@ -121,18 +121,35 @@ def path_to_location(modulestore, usage_key, request=None, full_path=False):
 
 
 def get_filtered_child_location(section_desc, request, course_id):
+    def staff_is_masquerading_as_student():
+        masquerade_data = request.session.get(MASQUERADE_SETTINGS_KEY, {})
+        return masquerade_data and masquerade_data[course_id].role == 'student'
+
+    def user_is_staff():
+        return request.user.is_staff and not staff_is_masquerading_as_student()
+
+    def check_if_child_is_appendable(child):
+        return user_is_staff() or not child.visible_to_staff_only
+
+    def append_children():
+        for child in section_desc.get_children():
+            child_locs.append(child.location)
+
+    def append_filtered_children():
+        for child in section_desc.get_children():
+            if check_if_child_is_appendable(child):
+                child_locs.append(child.location)
+
     child_locs = []
 
-    for child in section_desc.get_children():
-        if request is not None:
-            # check if staff is masquerading as student
-            masquerade_data = request.session.get(MASQUERADE_SETTINGS_KEY, {})
-            masquerade_as_student = masquerade_data and masquerade_data[course_id].role == 'student'
-            # skip visible to staff only indexes
-            if (request.user.is_staff and not masquerade_as_student) or not child.visible_to_staff_only:
-                child_locs.append(child.location)
-        else:
-            child_locs.append(child.location)
+    """
+    if request object is present apply Filter otherwise don't skip any child
+    """
+    if request is not None:
+        append_filtered_children()
+    else:
+        append_children()
+
     return child_locs
 
 

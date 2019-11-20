@@ -215,17 +215,18 @@ class TestJumpTo(ModuleStoreTestCase):
         response = self.client.get(jumpto_url)
         self.assertEqual(response.status_code, 404)
 
-    def test_jump_to_from_with_staff_only_content(self):
+    def test_jump_to_with_staff_only_content(self):
         course = CourseFactory.create()
         chapter = ItemFactory.create(category='chapter', parent_location=course.location)
         section = ItemFactory.create(category='sequential', parent_location=chapter.location)
-        vertical1 = ItemFactory.create(category='vertical', parent_location=section.location)
-        vertical2 = ItemFactory.create(category='vertical', parent_location=section.location,
+        __vertical1 = ItemFactory.create(category='vertical', parent_location=section.location)
+        __vertical2 = ItemFactory.create(category='vertical', parent_location=section.location,
                                        metadata=dict(visible_to_staff_only=True))
         vertical3 = ItemFactory.create(category='vertical', parent_location=section.location)
 
         # internal position of vertical3 will be 2 because staff only content is skipped
-        expected = '/courses/{course_id}/courseware/{chapter_id}/{section_id}/2?{activate_block_id}'.format(
+        expected = '/courses/{course_id}/courseware/{chapter_id}/{section_id}/{position}?{activate_block_id}'.format(
+            position=2,
             course_id=six.text_type(course.id),
             chapter_id=chapter.url_name,
             section_id=section.url_name,
@@ -779,7 +780,7 @@ class ViewsTestCase(ModuleStoreTestCase):
               ([CourseMode.AUDIT], CourseMode.AUDIT, False, None))
     @ddt.unpack
     def test_financial_assistance_form_course_exclusion(
-            self, course_modes, enrollment_mode, eligible_for_aid, expiration):
+        self, course_modes, enrollment_mode, eligible_for_aid, expiration):
         """Verify that learner cannot get the financial aid for the courses having one of the
         following attributes:
         1. User is enrolled in the verified mode.
@@ -942,9 +943,9 @@ class ViewsTestCase(ModuleStoreTestCase):
 
     def test_financial_assistance_login_required(self):
         for url in (
-                reverse('financial_assistance'),
-                reverse('financial_assistance_form'),
-                reverse('submit_financial_assistance_request')
+            reverse('financial_assistance'),
+            reverse('financial_assistance_form'),
+            reverse('submit_financial_assistance_request')
         ):
             self.client.logout()
             response = self.client.get(url)
@@ -1266,6 +1267,7 @@ class ProgressPageTests(ProgressPageBaseTests):
     """
     Tests that verify that the progress page works correctly.
     """
+
     @ddt.data('"><script>alert(1)</script>', '<script>alert(1)</script>', '</script><script>alert(1)</script>')
     def test_progress_page_xss_prevent(self, malicious_code):
         """
@@ -1297,7 +1299,6 @@ class ProgressPageTests(ProgressPageBaseTests):
             'azU3N_8$',
         ]
         for invalid_id in invalid_student_ids:
-
             resp = self.client.get(
                 reverse('student_progress', args=[six.text_type(self.course.id), invalid_id])
             )
@@ -1551,7 +1552,7 @@ class ProgressPageTests(ProgressPageBaseTests):
                 resp = self._get_progress_page()
 
                 cert_button_hidden = course_mode is CourseMode.AUDIT or \
-                    course_mode in CourseMode.VERIFIED_MODES and not user_verified
+                                     course_mode in CourseMode.VERIFIED_MODES and not user_verified
 
                 self.assertEqual(
                     cert_button_hidden,
@@ -1849,7 +1850,7 @@ class ProgressPageTests(ProgressPageBaseTests):
         return generated_certificate
 
     def mock_certificate_downloadable_status(
-            self, is_downloadable=False, is_generating=False, is_unverified=False, uuid=None, download_url=None
+        self, is_downloadable=False, is_generating=False, is_unverified=False, uuid=None, download_url=None
     ):
         """Dry method to mock certificate downloadable status response."""
         return {
@@ -2496,7 +2497,7 @@ class TestIndexView(ModuleStoreTestCase):
     @patch('lms.djangoapps.courseware.views.views.CourseTabView.course_open_for_learner_enrollment')
     @patch('openedx.core.djangoapps.util.user_messages.PageLevelMessages.register_warning_message')
     def test_courseware_messages_differentiate_for_anonymous_users(
-            self, patch_register_warning_message, patch_course_open_for_learner_enrollment
+        self, patch_register_warning_message, patch_course_open_for_learner_enrollment
     ):
         """
         Tests that the anonymous user case for the
@@ -2524,7 +2525,7 @@ class TestIndexView(ModuleStoreTestCase):
     @patch('openedx.core.djangoapps.util.user_messages.PageLevelMessages.register_warning_message')
     def test_courseware_messages_masters_only(self, patch_register_warning_message):
         with patch(
-                'lms.djangoapps.courseware.views.views.CourseTabView.course_open_for_learner_enrollment'
+            'lms.djangoapps.courseware.views.views.CourseTabView.course_open_for_learner_enrollment'
         ) as patch_course_open_for_learner_enrollment:
             course = CourseFactory()
 
@@ -2564,8 +2565,8 @@ class TestIndexView(ModuleStoreTestCase):
     def test_should_show_enroll_button(self, course_open_for_self_enrollment,
                                        invitation_only, is_masters_only, expected_should_show_enroll_button):
         with patch('lms.djangoapps.courseware.views.views.course_open_for_self_enrollment') \
-                as patch_course_open_for_self_enrollment, \
-                patch('course_modes.models.CourseMode.is_masters_only') as patch_is_masters_only:
+            as patch_course_open_for_self_enrollment, \
+            patch('course_modes.models.CourseMode.is_masters_only') as patch_is_masters_only:
             course = CourseFactory()
 
             patch_course_open_for_self_enrollment.return_value = course_open_for_self_enrollment
@@ -2597,7 +2598,6 @@ class TestIndexViewCompleteOnView(ModuleStoreTestCase, CompletionWaffleTestMixin
             self.course = CourseFactory.create()
 
             with self.store.bulk_operations(self.course.id):
-
                 self.chapter = ItemFactory.create(
                     parent_location=self.course.location, category='chapter', display_name='Week 1'
                 )
@@ -2653,7 +2653,6 @@ class TestIndexViewCompleteOnView(ModuleStoreTestCase, CompletionWaffleTestMixin
 
     @ddt.data(ModuleStoreEnum.Type.mongo, ModuleStoreEnum.Type.split)
     def test_completion_service_disabled(self, default_store):
-
         self.setup_course(default_store)
         self.assertTrue(self.client.login(username=self.user.username, password='test'))
 
@@ -2665,7 +2664,6 @@ class TestIndexViewCompleteOnView(ModuleStoreTestCase, CompletionWaffleTestMixin
 
     @ddt.data(ModuleStoreEnum.Type.mongo, ModuleStoreEnum.Type.split)
     def test_completion_service_enabled(self, default_store):
-
         self.override_waffle_switch(True)
 
         self.setup_course(default_store)
@@ -2904,6 +2902,7 @@ class TestRenderXBlock(RenderXBlockTestMixin, ModuleStoreTestCase, CompletionWaf
     This class overrides the get_response method, which is used by
     the tests defined in RenderXBlockTestMixin.
     """
+
     def setUp(self):
         reload_django_url_config()
         super(TestRenderXBlock, self).setUp()
@@ -2981,6 +2980,7 @@ class TestRenderXBlockSelfPaced(TestRenderXBlock):
     Test rendering XBlocks for a self-paced course. Relies on the query
     count assertions in the tests defined by RenderXBlockMixin.
     """
+
     def setUp(self):
         super(TestRenderXBlockSelfPaced, self).setUp()
 
@@ -2997,6 +2997,7 @@ class TestIndexViewCrawlerStudentStateWrites(SharedModuleStoreTestCase):
     courseware_studentmodule table when concurrent requests each try to update
     the same rows for sequence, section, and course positions.
     """
+
     @classmethod
     def setUpClass(cls):
         """Set up the simplest course possible."""
@@ -3072,6 +3073,7 @@ class EnterpriseConsentTestCase(EnterpriseTestConsentRequired, ModuleStoreTestCa
     """
     Ensure that the Enterprise Data Consent redirects are in place only when consent is required.
     """
+
     def setUp(self):
         super(EnterpriseConsentTestCase, self).setUp()
         self.user = UserFactory.create()
@@ -3090,9 +3092,9 @@ class EnterpriseConsentTestCase(EnterpriseTestConsentRequired, ModuleStoreTestCa
 
         course_id = six.text_type(self.course.id)
         for url in (
-                reverse("courseware", kwargs=dict(course_id=course_id)),
-                reverse("progress", kwargs=dict(course_id=course_id)),
-                reverse("student_progress", kwargs=dict(course_id=course_id, student_id=str(self.user.id))),
+            reverse("courseware", kwargs=dict(course_id=course_id)),
+            reverse("progress", kwargs=dict(course_id=course_id)),
+            reverse("student_progress", kwargs=dict(course_id=course_id, student_id=str(self.user.id))),
         ):
             self.verify_consent_required(self.client, url)
 
@@ -3102,6 +3104,7 @@ class AccessUtilsTestCase(ModuleStoreTestCase):
     """
     Test access utilities
     """
+
     @ddt.data(
         (1, False),
         (-1, True)
