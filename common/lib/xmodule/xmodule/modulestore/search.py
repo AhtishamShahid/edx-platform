@@ -144,13 +144,6 @@ def get_child_locations(section_desc, request, course_id):
             child_locs.append(child.location)
         return child_locs
 
-    # def append_filtered_children():
-    #     for child in section_desc.get_children():
-    #         if check_if_child_is_appendable(child):
-    #             child_locs.append(child.location)
-
-    # child_locs = []
-
     return fetch_child_locations()
 
 
