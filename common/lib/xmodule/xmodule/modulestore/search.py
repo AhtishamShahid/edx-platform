@@ -114,7 +114,8 @@ def path_to_location(modulestore, usage_key, request=None, full_path=False):
                     # this calls get_children rather than just children b/c old mongo includes private children
                     # in children but not in get_children
                     child_locs = get_filtered_child_location(section_desc, request, course_id)
-                    position_list.append(str(child_locs.index(path[path_index + 1]) + 1))
+                    if path[path_index + 1] in child_locs:
+                        position_list.append(str(child_locs.index(path[path_index + 1]) + 1))
             position = "_".join(position_list)
 
     return (course_id, chapter, section, vertical, position, path[-1])
