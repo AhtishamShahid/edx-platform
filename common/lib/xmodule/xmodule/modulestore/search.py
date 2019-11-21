@@ -5,6 +5,7 @@ from logging import getLogger
 
 from six.moves import range
 
+from student.roles import GlobalStaff
 from lms.djangoapps.courseware.masquerade import MASQUERADE_SETTINGS_KEY
 from .exceptions import ItemNotFoundError, NoPathToItem
 
@@ -113,7 +114,7 @@ def path_to_location(modulestore, usage_key, request=None, full_path=False):
                     section_desc = modulestore.get_item(path[path_index])
                     # this calls get_children rather than just children b/c old mongo includes private children
                     # in children but not in get_children
-                    child_locs = get_filtered_child_location(section_desc, request, course_id)
+                    child_locs = get_child_locations(section_desc, request, course_id)
                     if path[path_index + 1] in child_locs:
                         position_list.append(str(child_locs.index(path[path_index + 1]) + 1))
             position = "_".join(position_list)
@@ -121,37 +122,36 @@ def path_to_location(modulestore, usage_key, request=None, full_path=False):
     return (course_id, chapter, section, vertical, position, path[-1])
 
 
-def get_filtered_child_location(section_desc, request, course_id):
-    def staff_is_masquerading_as_student():
-        masquerade_data = request.session.get(MASQUERADE_SETTINGS_KEY, {})
-        return masquerade_data and masquerade_data[course_id].role == 'student'
-
-    def user_is_staff():
-        return request.user.is_staff and not staff_is_masquerading_as_student()
-
-    def check_if_child_is_appendable(child):
-        return user_is_staff() or not child.visible_to_staff_only
-
-    def append_children():
-        for child in section_desc.get_children():
-            child_locs.append(child.location)
-
-    def append_filtered_children():
-        for child in section_desc.get_children():
-            if check_if_child_is_appendable(child):
-                child_locs.append(child.location)
-
-    child_locs = []
-
+def get_child_locations(section_desc, request, course_id):
     """
     if request object is present apply Filter otherwise don't skip any child
     """
-    if request is not None:
-        append_filtered_children()
-    else:
-        append_children()
+    def is_masquerading_as_student():
+        masquerade_data = request.session.get(MASQUERADE_SETTINGS_KEY, {})
+        return masquerade_data and masquerade_data[course_id].role == 'student'
 
-    return child_locs
+    def is_user_staff():
+        return GlobalStaff().has_user(request.user) and not is_masquerading_as_student()
+
+    def is_child_appendable(child):
+        return (request and is_user_staff()) or not child.visible_to_staff_only
+
+    def fetch_child_locations():
+        child_locs = []
+        for child in section_desc.get_children():
+            if not is_child_appendable(child):
+                continue
+            child_locs.append(child.location)
+        return child_locs
+
+    # def append_filtered_children():
+    #     for child in section_desc.get_children():
+    #         if check_if_child_is_appendable(child):
+    #             child_locs.append(child.location)
+
+    # child_locs = []
+
+    return fetch_child_locations()
 
 
 def navigation_index(position):
