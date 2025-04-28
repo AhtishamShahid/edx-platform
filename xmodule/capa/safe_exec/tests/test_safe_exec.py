@@ -24,10 +24,8 @@ from openedx.core.djangolib.testing.utils import skip_unless_lms
 from xmodule.capa.safe_exec import safe_exec, update_hash
 from xmodule.capa.safe_exec.remote_exec import is_codejail_in_darklaunch, is_codejail_rest_service_enabled
 from xmodule.capa.safe_exec.safe_exec import emsg_normalizers, normalize_error_message
-from xmodule.capa.tests.test_util import use_unsafe_codejail
 
 
-@use_unsafe_codejail()
 class TestSafeExec(unittest.TestCase):  # lint-amnesty, pylint: disable=missing-class-docstring
     def test_set_values(self):
         g = {}
@@ -197,10 +195,7 @@ class TestCodeJailDarkLaunch(unittest.TestCase):
             mock_remote_exec.side_effect = remote
 
             try:
-                safe_exec(
-                    "<IGNORED BY MOCKS>", globals_dict,
-                    limit_overrides_context="course-v1:org+course+run", slug="hw1",
-                )
+                safe_exec("<IGNORED BY MOCKS>", globals_dict)
             except BaseException as e:
                 safe_exec_e = e
             else:
@@ -220,8 +215,8 @@ class TestCodeJailDarkLaunch(unittest.TestCase):
 
     # These don't change between the tests
     standard_codejail_attr_calls = [
-        call('codejail.slug', 'hw1'),
-        call('codejail.limit_overrides_context', 'course-v1:org+course+run'),
+        call('codejail.slug', None),
+        call('codejail.limit_overrides_context', None),
         call('codejail.extra_files_count', 0),
     ]
 
@@ -261,11 +256,12 @@ class TestCodeJailDarkLaunch(unittest.TestCase):
             ],
             expect_log_info_calls=[
                 call(
-                    "Codejail darklaunch had mismatch for "
-                    "course='course-v1:org+course+run', slug='hw1':\n"
-                    "emsg_match=True, globals_match=False\n"
-                    "Local: globals={'overwrite': 'mock local'}, emsg=None\n"
-                    "Remote: globals={'overwrite': 'mock remote'}, emsg=None"
+                    "Codejail darklaunch local results for slug=None: globals={'overwrite': 'mock local'}, "
+                    "emsg=None, exception=None"
+                ),
+                call(
+                    "Codejail darklaunch remote results for slug=None: globals={'overwrite': 'mock remote'}, "
+                    "emsg=None, exception=None"
                 ),
             ],
             # Should only see behavior of local exec
@@ -300,10 +296,12 @@ class TestCodeJailDarkLaunch(unittest.TestCase):
             ],
             expect_log_info_calls=[
                 call(
-                    "Codejail darklaunch had unexpected exception "
-                    "for course='course-v1:org+course+run', slug='hw1':\n"
-                    "Local exception: BaseException('unexpected')\n"
-                    "Remote exception: None"
+                    "Codejail darklaunch local results for slug=None: globals={}, "
+                    "emsg='unexpected', exception=BaseException('unexpected')"
+                ),
+                call(
+                    "Codejail darklaunch remote results for slug=None: globals={}, "
+                    "emsg=None, exception=None"
                 ),
             ],
             expect_globals_contains={},
@@ -334,11 +332,12 @@ class TestCodeJailDarkLaunch(unittest.TestCase):
             ],
             expect_log_info_calls=[
                 call(
-                    "Codejail darklaunch had mismatch for "
-                    "course='course-v1:org+course+run', slug='hw1':\n"
-                    "emsg_match=False, globals_match=True\n"
-                    "Local: globals={}, emsg='oops'\n"
-                    "Remote: globals={}, emsg='OH NO'"
+                    "Codejail darklaunch local results for slug=None: globals={}, "
+                    "emsg='oops', exception=None"
+                ),
+                call(
+                    "Codejail darklaunch remote results for slug=None: globals={}, "
+                    "emsg='OH NO', exception=None"
                 ),
             ],
             expect_globals_contains={},
@@ -366,77 +365,47 @@ class TestCodeJailDarkLaunch(unittest.TestCase):
                 call('codejail.darklaunch.globals_match', True),
                 call('codejail.darklaunch.emsg_match', True),  # even though not exact match
             ],
-            expect_log_info_calls=[],
+            expect_log_info_calls=[
+                call(
+                    "Codejail darklaunch local results for slug=None: globals={}, "
+                    "emsg='stack trace involving /tmp/codejail-1234567/whatever.py', exception=None"
+                ),
+                call(
+                    "Codejail darklaunch remote results for slug=None: globals={}, "
+                    "emsg='stack trace involving /tmp/codejail-abcd_EFG/whatever.py', exception=None"
+                ),
+            ],
             expect_globals_contains={},
         )
         assert isinstance(results['raised'], SafeExecException)
         assert 'whatever.py' in repr(results['raised'])
 
-    def test_default_normalizers(self):
-        """
-        Default normalizers handle false mismatches we've observed.
-
-        This just provides coverage for some of the more complicated patterns.
-        """
-        side_1 = (
-            'Couldn\'t execute jailed code: stdout: b\'\', stderr: b\'Traceback'
-            ' (most recent call last):\\n  File "/tmp/codejail-9g9715g_/jailed_code"'
-            ', line 19, in <module>\\n    exec(code, g_dict)\\n  File "<string>"'
-            ', line 1, in <module>\\n  File "<string>", line 89, in test_add\\n'
-            '  File "<string>", line 1\\n    import random random.choice(range(10))'
-            '\\n    ^\\nSyntaxError: invalid syntax\\n\' with status code: 1'
-        )
-        side_2 = (
-            'Couldn\'t execute jailed code: stdout: b\'\', stderr: b\'Traceback'
-            ' (most recent call last):\\n  File "jailed_code"'
-            ', line 19, in <module>\\n    exec(code, g_dict)\\n  File "<string>"'
-            ', line 203, in <module>\\n  File "<string>", line 89, in test_add\\n'
-            '  File "<string>", line 1\\n    import random random.choice(range(10))'
-            '\\n    ^^^^^^\\nSyntaxError: invalid syntax\\n\' with status code: 1'
-        )
-        assert normalize_error_message(side_1) == normalize_error_message(side_2)
-
     @override_settings(CODEJAIL_DARKLAUNCH_EMSG_NORMALIZERS=[
+        {
+            'search': r'/tmp/codejail-[0-9a-zA-Z]+',
+            'replace': r'/tmp/codejail-<RAND>',
+        },
         {
             'search': r'[0-9]+',
             'replace': r'<NUM>',
         },
     ])
     def test_configurable_normalizers(self):
-        """We can augment the normalizers, and they run in order."""
+        """We can override the normalizers, and they run in order."""
         emsg_in = "Error in /tmp/codejail-1234abcd/whatever.py: something 12 34 other"
-        expect_out = "Error in /tmp/codejail-<SANDBOX_DIR_NAME>/whatever.py: something <NUM> <NUM> other"
-        assert expect_out == normalize_error_message(emsg_in)
-
-    @override_settings(
-        CODEJAIL_DARKLAUNCH_EMSG_NORMALIZERS=[
-            {
-                'search': r'[0-9]+',
-                'replace': r'<NUM>',
-            },
-        ],
-        CODEJAIL_DARKLAUNCH_EMSG_NORMALIZERS_COMBINE='replace',
-    )
-    def test_can_replace_normalizers(self):
-        """We can replace the normalizers."""
-        emsg_in = "Error in /tmp/codejail-1234abcd/whatever.py: something 12 34 other"
-        expect_out = "Error in /tmp/codejail-<NUM>abcd/whatever.py: something <NUM> <NUM> other"
+        expect_out = "Error in /tmp/codejail-<RAND>/whatever.py: something <NUM> <NUM> other"
         assert expect_out == normalize_error_message(emsg_in)
 
     @override_settings(CODEJAIL_DARKLAUNCH_EMSG_NORMALIZERS=[
         {
-            'search': r'broken',
-            'replace': r'replace \g<>',  # invalid replacement pattern
+            'search': r'broken [',
+            'replace': r'replace',
         },
     ])
     @patch('xmodule.capa.safe_exec.safe_exec.record_exception')
-    @patch('xmodule.capa.safe_exec.safe_exec.log.error')
-    def test_normalizers_validate(self, mock_log_error, mock_record_exception):
-        """Normalizers are validated, and fall back to default list on error."""
-        assert len(emsg_normalizers()) > 0  # pylint: disable=use-implicit-booleaness-not-comparison
-        mock_log_error.assert_called_once_with(
-            "Could not load custom codejail darklaunch emsg normalizers"
-        )
+    def test_normalizers_validate(self, mock_record_exception):
+        """Normalizers are validated, and fall back to empty list on error."""
+        assert emsg_normalizers() == []  # pylint: disable=use-implicit-booleaness-not-comparison
         mock_record_exception.assert_called_once()
 
 
@@ -532,7 +501,6 @@ class DictCache(object):
         self.cache[key] = value
 
 
-@use_unsafe_codejail()
 class TestSafeExecCaching(unittest.TestCase):
     """Test that caching works on safe_exec."""
 
@@ -657,7 +625,6 @@ class TestUpdateHash(unittest.TestCase):
         assert h1 == h2
 
 
-@use_unsafe_codejail()
 class TestRealProblems(unittest.TestCase):  # lint-amnesty, pylint: disable=missing-class-docstring
     def test_802x(self):
         code = textwrap.dedent("""\
