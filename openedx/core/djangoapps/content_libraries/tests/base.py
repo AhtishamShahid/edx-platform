@@ -32,23 +32,16 @@ URL_LIB_TEAM = URL_LIB_DETAIL + 'team/'  # Get the list of users/groups authoriz
 URL_LIB_TEAM_USER = URL_LIB_TEAM + 'user/{username}/'  # Add/edit/remove a user's permission to use this library
 URL_LIB_TEAM_GROUP = URL_LIB_TEAM + 'group/{group_name}/'  # Add/edit/remove a group's permission to use this library
 URL_LIB_PASTE_CLIPBOARD = URL_LIB_DETAIL + 'paste_clipboard/'  # Paste user clipboard (POST) containing Xblock data
-URL_LIB_BACKUP = URL_LIB_DETAIL + 'backup/'  # Start a backup task for this library
-URL_LIB_BACKUP_GET = URL_LIB_BACKUP + '?{query_params}'  # Get status on a backup task for this library
-URL_LIB_RESTORE = URL_PREFIX + 'restore/'  # Restore a library from a learning package backup file
-URL_LIB_RESTORE_GET = URL_LIB_RESTORE + '?{query_params}'  # Get status/result of a library restore task
 URL_LIB_BLOCK = URL_PREFIX + 'blocks/{block_key}/'  # Get data about a block, or delete it
 URL_LIB_BLOCK_PUBLISH = URL_LIB_BLOCK + 'publish/'  # Publish changes from a specified XBlock
 URL_LIB_BLOCK_OLX = URL_LIB_BLOCK + 'olx/'  # Get or set the OLX of the specified XBlock
 URL_LIB_BLOCK_ASSETS = URL_LIB_BLOCK + 'assets/'  # List the static asset files of the specified XBlock
 URL_LIB_BLOCK_ASSET_FILE = URL_LIB_BLOCK + 'assets/{file_name}'  # Get, delete, or upload a specific static asset file
-URL_LIB_BLOCK_HIERARCHY = URL_LIB_BLOCK + 'hierarchy/'  # Get a library block's full hierarchy
 URL_LIB_CONTAINER = URL_PREFIX + 'containers/{container_key}/'  # Get a container in this library
-URL_LIB_CONTAINER_CHILDREN = URL_LIB_CONTAINER + 'children/'  # Get, add or delete a component in this container
-URL_LIB_CONTAINER_HIERARCHY = URL_LIB_CONTAINER + 'hierarchy/'  # Get a container's full hierarchy
+URL_LIB_CONTAINER_COMPONENTS = URL_LIB_CONTAINER + 'children/'  # Get, add or delete a component in this container
 URL_LIB_CONTAINER_RESTORE = URL_LIB_CONTAINER + 'restore/'  # Restore a deleted container
 URL_LIB_CONTAINER_COLLECTIONS = URL_LIB_CONTAINER + 'collections/'  # Handle associated collections
 URL_LIB_CONTAINER_PUBLISH = URL_LIB_CONTAINER + 'publish/'  # Publish changes to the specified container + children
-URL_LIB_CONTAINER_COPY = URL_LIB_CONTAINER + 'copy/'  # Copy the specified container to the clipboard
 URL_LIB_COLLECTION = URL_LIB_COLLECTIONS + '{collection_key}/'  # Get a collection in this library
 URL_LIB_COLLECTION_ITEMS = URL_LIB_COLLECTION + 'items/'  # Get a collection in this library
 
@@ -141,21 +134,18 @@ class ContentLibrariesRestApiTest(APITransactionTestCase):
 
     def _create_library(
         self, slug, title, description="", org=None,
-        license_type=ALL_RIGHTS_RESERVED, expect_response=200, learning_package=None
+        license_type=ALL_RIGHTS_RESERVED, expect_response=200,
     ):
         """ Create a library """
         if org is None:
             org = self.organization.short_name
-        data = {
+        return self._api('post', URL_LIB_CREATE, {
             "org": org,
             "slug": slug,
             "title": title,
             "description": description,
             "license": license_type,
-        }
-        if learning_package is not None:
-            data["learning_package"] = learning_package
-        return self._api('post', URL_LIB_CREATE, data, expect_response)
+        }, expect_response)
 
     def _list_libraries(self, query_params_dict=None, expect_response=200):
         """ List libraries """
@@ -326,32 +316,6 @@ class ContentLibrariesRestApiTest(APITransactionTestCase):
         url = URL_LIB_PASTE_CLIPBOARD.format(lib_key=lib_key)
         return self._api('post', url, {}, expect_response)
 
-    def _start_library_backup_task(self, lib_key, expect_response=200):
-        """ Start a backup task for this library """
-        url = URL_LIB_BACKUP.format(lib_key=lib_key)
-        return self._api('post', url, {}, expect_response)
-
-    def _get_library_backup_task(self, lib_key, task_id, expect_response=200):
-        """ Get the status of a backup task for this library """
-        query_params = urlencode({"task_id": task_id})
-        url = URL_LIB_BACKUP_GET.format(lib_key=lib_key, query_params=query_params)
-        return self._api('get', url, None, expect_response)
-
-    def _start_library_restore_task(self, file, expect_response=200):
-        """ Start a library restore task from a backup file """
-        url = URL_LIB_RESTORE
-        data = {"file": file}
-        response = self.client.post(url, data, format='multipart')
-        assert response.status_code == expect_response, \
-            f'Unexpected response code {response.status_code}:\n{getattr(response, "data", "(no data)")}'
-        return response.data
-
-    def _get_library_restore_task(self, task_id, expect_response=200):
-        """ Get the status/result of a library restore task """
-        query_params = urlencode({"task_id": task_id})
-        url = URL_LIB_RESTORE_GET.format(query_params=query_params)
-        return self._api('get', url, None, expect_response)
-
     def _render_block_view(self, block_key, view_name, version=None, expect_response=200):
         """
         Render an XBlock's view in the active application's runtime.
@@ -432,53 +396,53 @@ class ContentLibrariesRestApiTest(APITransactionTestCase):
         """ Restore a deleted a container (unit etc.) """
         return self._api('post', URL_LIB_CONTAINER_RESTORE.format(container_key=container_key), None, expect_response)
 
-    def _get_container_children(self, container_key: ContainerKey | str, expect_response=200):
-        """ Get container children"""
+    def _get_container_components(self, container_key: ContainerKey | str, expect_response=200):
+        """ Get container components"""
         return self._api(
             'get',
-            URL_LIB_CONTAINER_CHILDREN.format(container_key=container_key),
+            URL_LIB_CONTAINER_COMPONENTS.format(container_key=container_key),
             None,
             expect_response
         )
 
-    def _add_container_children(
+    def _add_container_components(
         self,
         container_key: ContainerKey | str,
         children_ids: list[str],
         expect_response=200,
     ):
-        """ Add container children"""
+        """ Add container components"""
         return self._api(
             'post',
-            URL_LIB_CONTAINER_CHILDREN.format(container_key=container_key),
+            URL_LIB_CONTAINER_COMPONENTS.format(container_key=container_key),
             {'usage_keys': children_ids},
             expect_response
         )
 
-    def _remove_container_children(
+    def _remove_container_components(
         self,
         container_key: ContainerKey | str,
         children_ids: list[str],
         expect_response=200,
     ):
-        """ Remove container children"""
+        """ Remove container components"""
         return self._api(
             'delete',
-            URL_LIB_CONTAINER_CHILDREN.format(container_key=container_key),
+            URL_LIB_CONTAINER_COMPONENTS.format(container_key=container_key),
             {'usage_keys': children_ids},
             expect_response
         )
 
-    def _patch_container_children(
+    def _patch_container_components(
         self,
         container_key: ContainerKey | str,
         children_ids: list[str],
         expect_response=200,
     ):
-        """ Update container children"""
+        """ Update container components"""
         return self._api(
             'patch',
-            URL_LIB_CONTAINER_CHILDREN.format(container_key=container_key),
+            URL_LIB_CONTAINER_COMPONENTS.format(container_key=container_key),
             {'usage_keys': children_ids},
             expect_response
         )
@@ -500,31 +464,6 @@ class ContentLibrariesRestApiTest(APITransactionTestCase):
     def _publish_container(self, container_key: ContainerKey | str, expect_response=200):
         """ Publish all changes in the specified container + children """
         return self._api('post', URL_LIB_CONTAINER_PUBLISH.format(container_key=container_key), None, expect_response)
-
-    def _copy_container(self, container_key: ContainerKey | str, expect_response=200):
-        """ Copy the specified container to the clipboard """
-        return self._api('post', URL_LIB_CONTAINER_COPY.format(container_key=container_key), None, expect_response)
-
-    @staticmethod
-    def _hierarchy_member(obj) -> dict:
-        """
-        Returns the subset of metadata fields used by the container hierarchy.
-        """
-        return {
-            "id": obj["id"],
-            "display_name": obj["display_name"],
-            "has_unpublished_changes": obj["has_unpublished_changes"],
-        }
-
-    def _get_block_hierarchy(self, block_key, expect_response=200):
-        """ Returns the hierarchy of containers that contain the given block """
-        url = URL_LIB_BLOCK_HIERARCHY.format(block_key=block_key)
-        return self._api('get', url, None, expect_response)
-
-    def _get_container_hierarchy(self, container_key, expect_response=200):
-        """ Returns the hierarchy of containers that contain and are contained by the given container """
-        url = URL_LIB_CONTAINER_HIERARCHY.format(container_key=container_key)
-        return self._api('get', url, None, expect_response)
 
     def _create_collection(
         self,

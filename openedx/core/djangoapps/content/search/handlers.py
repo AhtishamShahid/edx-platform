@@ -12,55 +12,48 @@ from opaque_keys.edx.locator import LibraryCollectionLocator, LibraryContainerLo
 from openedx_events.content_authoring.data import (
     ContentLibraryData,
     ContentObjectChangedData,
-    CourseData,
     LibraryBlockData,
     LibraryCollectionData,
     LibraryContainerData,
     XBlockData,
 )
 from openedx_events.content_authoring.signals import (
-    CONTENT_LIBRARY_CREATED,
     CONTENT_LIBRARY_DELETED,
     CONTENT_LIBRARY_UPDATED,
-    CONTENT_OBJECT_ASSOCIATIONS_CHANGED,
-    COURSE_IMPORT_COMPLETED,
-    COURSE_RERUN_COMPLETED,
     LIBRARY_BLOCK_CREATED,
     LIBRARY_BLOCK_DELETED,
-    LIBRARY_BLOCK_PUBLISHED,
     LIBRARY_BLOCK_UPDATED,
+    LIBRARY_BLOCK_PUBLISHED,
     LIBRARY_COLLECTION_CREATED,
     LIBRARY_COLLECTION_DELETED,
     LIBRARY_COLLECTION_UPDATED,
     LIBRARY_CONTAINER_CREATED,
     LIBRARY_CONTAINER_DELETED,
-    LIBRARY_CONTAINER_PUBLISHED,
     LIBRARY_CONTAINER_UPDATED,
+    LIBRARY_CONTAINER_PUBLISHED,
     XBLOCK_CREATED,
     XBLOCK_DELETED,
     XBLOCK_UPDATED,
+    CONTENT_OBJECT_ASSOCIATIONS_CHANGED,
 )
 
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from openedx.core.djangoapps.content.search.models import SearchAccess
 from openedx.core.djangoapps.content_libraries import api as lib_api
-from xmodule.modulestore.django import SignalHandler
 
 from .api import (
     only_if_meilisearch_enabled,
     upsert_content_object_tags_index_doc,
+    upsert_collection_tags_index_docs,
     upsert_item_collections_index_docs,
-    upsert_item_containers_index_docs,
 )
 from .tasks import (
-    delete_course_index_docs,
     delete_library_block_index_doc,
     delete_library_container_index_doc,
     delete_xblock_index_doc,
     update_content_library_index_docs,
     update_library_collection_index_doc,
     update_library_container_index_doc,
-    upsert_course_blocks_docs,
     upsert_library_block_index_doc,
     upsert_xblock_index_doc,
 )
@@ -188,21 +181,6 @@ def library_block_deleted(**kwargs) -> None:
     delete_library_block_index_doc.apply(args=[str(library_block_data.usage_key)])
 
 
-@receiver(CONTENT_LIBRARY_CREATED)
-@only_if_meilisearch_enabled
-def content_library_created_handler(**kwargs) -> None:
-    """
-    Create the index for the content library
-    """
-    content_library_data = kwargs.get("content_library", None)
-    if not content_library_data or not isinstance(content_library_data, ContentLibraryData):  # pragma: no cover
-        log.error("Received null or incorrect data for event")
-        return
-    library_key = content_library_data.library_key
-
-    update_content_library_index_docs.apply(args=[str(library_key), True])
-
-
 @receiver(CONTENT_LIBRARY_UPDATED)
 @only_if_meilisearch_enabled
 def content_library_updated_handler(**kwargs) -> None:
@@ -279,15 +257,12 @@ def content_object_associations_changed_handler(**kwargs) -> None:
     # This event's changes may contain both "tags" and "collections", but this will happen rarely, if ever.
     # So we allow a potential double "upsert" here.
     if not content_object.changes or "tags" in content_object.changes:
-        upsert_content_object_tags_index_doc(opaque_key)
+        if isinstance(opaque_key, LibraryCollectionLocator):
+            upsert_collection_tags_index_docs(opaque_key)
+        else:
+            upsert_content_object_tags_index_doc(opaque_key)
     if not content_object.changes or "collections" in content_object.changes:
         upsert_item_collections_index_docs(opaque_key)
-    if not content_object.changes or "units" in content_object.changes:
-        upsert_item_containers_index_docs(opaque_key, "units")
-    if not content_object.changes or "sections" in content_object.changes:
-        upsert_item_containers_index_docs(opaque_key, "sections")
-    if not content_object.changes or "subsections" in content_object.changes:
-        upsert_item_containers_index_docs(opaque_key, "subsections")
 
 
 @receiver(LIBRARY_CONTAINER_CREATED)
@@ -349,25 +324,3 @@ def library_container_deleted(**kwargs) -> None:
     # TODO: post-Teak, move all the celery tasks directly inline into this handlers? Because now the
     # events are emitted in an [async] worker, so it doesn't matter if the handlers are synchronous.
     # See https://github.com/openedx/edx-platform/pull/36640 discussion.
-
-
-@receiver([COURSE_IMPORT_COMPLETED, COURSE_RERUN_COMPLETED])
-def handle_reindex_on_signal(**kwargs):
-    """
-    Automatically update Meiliesearch index for course in database on new import or rerun.
-    """
-    course_data = kwargs.get("course", None)
-    if not course_data or not isinstance(course_data, CourseData):
-        log.error("Received null or incorrect data for event")
-        return
-
-    upsert_course_blocks_docs.delay(str(course_data.course_key))
-
-
-@receiver(SignalHandler.course_deleted)
-def listen_for_course_delete(sender, course_key, **kwargs):  # pylint: disable=unused-argument
-    """
-    Catches the signal that a course has been deleted
-    and removes its entry from the Course About Search index.
-    """
-    delete_course_index_docs.delay(str(course_key))
