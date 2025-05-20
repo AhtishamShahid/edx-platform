@@ -40,7 +40,6 @@
     // The minimal RequireJS configuration required for common LMS and CMS building XBlock types to work:
     require = require || RequireJS.require;
     define = define || RequireJS.define;
-    baseUrl = "";
     (function (require, define) {
         if ('{{ view_name | safe }}' === 'studio_view') {
             // Call `require-config.js` of the CMS
@@ -48,10 +47,9 @@
             script.type = 'text/javascript';
             script.src = "{{ cms_root_url }}/static/studio/cms/js/require-config.js";
             document.head.appendChild(script);
-            baseUrl = "{{ cms_root_url }}/static/studio";
 
             require.config({
-                baseUrl,
+                baseUrl: "{{ cms_root_url }}/static/studio",
                 paths: {
                         accessibility: 'js/src/accessibility_tools',
                         draggabilly: 'js/vendor/draggabilly',
@@ -66,9 +64,8 @@
                 "{{ lms_root_url }}/static/dist{{ oa_manifest.oa_editor_textarea_js }}",
             ]);
         } else {
-            baseUrl = "{{ lms_root_url }}/static/";
             require.config({
-                baseUrl,
+                baseUrl: "{{ lms_root_url }}/static/",
                 paths: {
                     accessibility: 'js/src/accessibility_tools',
                     draggabilly: 'js/vendor/draggabilly',
@@ -196,11 +193,6 @@
   event listeners below, in certain situations.  Resetting it to the default "auto" skirts the problem.-->
 <body style="background-color: white;" class="view-container">
   <div id="content" class="wrapper xblock-iframe-content">
-      {% if show_title  %}
-        <div class="xblock-title">
-            {{ display_name | safe }}
-        </div>
-      {% endif %}
       <!-- fragment body -->
       {{ fragment.body_html | safe }}
       <!-- fragment foot -->
@@ -348,7 +340,7 @@
                         $('.save-button', passElement).bind('click', function() {
                             //event.preventDefault();
                             var error_message_div = $('.xblock-editor-error-message', passElement);
-                            const modifiedData = editorView.getChangedMetadata(true);
+                            const modifiedData = editorView.getChangedMetadata();
 
                             error_message_div.html();
                             error_message_div.css('display', 'none');
@@ -383,6 +375,7 @@
             if ('{{ view_name | safe }}' === 'studio_view') {
               // Used when rendering the `studio_view`, in order to avoid open a new tab on click cancel or save
               const selectors = [
+                  '.cancel-button',
                   '.save-button',
                   '.action-cancel',
                   '.action-save',
@@ -397,24 +390,6 @@
                           event.preventDefault();
                       });
                   }
-              }
-
-              // This button is used in `StudioEditableXBlockMixin` from the `Xblock` app
-              // That app adds a listener that removes any TinyMCE editors on click cancel.
-              // ref: https://github.com/openedx/XBlock/blob/86eee4b05dffa42b009fab2a9050b73766131b9d/xblock/utils/public/studio_edit.js#L169
-              //
-              // Here that is an issue because we show a confirmation modal when clicking cancel,
-              // if the user stays to edit all TinyMCE editors are no longer there.
-              // 
-              // We uncouple the listener to avoid remove the TinyMCE editors
-              const extraCancelSelector = '.cancel-button';
-              const elements = $(extraCancelSelector).first();
-              if (elements.length) {
-                elements.first().unbind("click");
-                elements.on('click', function() {                    
-                    event.preventDefault();
-                    runtime.notify('cancel', {});
-                });
               }
             }
         }
