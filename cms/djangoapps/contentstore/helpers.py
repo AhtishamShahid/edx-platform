@@ -2,7 +2,6 @@
 Helper methods for Studio views.
 """
 from __future__ import annotations
-import json
 import logging
 import pathlib
 import urllib
@@ -17,7 +16,6 @@ from django.contrib.auth import get_user_model
 from django.utils.translation import gettext as _
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from opaque_keys.edx.locator import DefinitionLocator, LocalId
-from openedx.core.djangoapps.content_tagging.types import TagValuesByObjectIdDict
 from xblock.core import XBlock
 from xblock.fields import ScopeIds
 from xblock.runtime import IdGenerator
@@ -288,26 +286,6 @@ class StaticFileNotices:
     error_files: list[str] = Factory(list)
 
 
-def _rewrite_static_asset_references(downstream_xblock: XBlock, substitutions: dict[str, str], user_id: int) -> None:
-    """
-    Rewrite the static asset references in the OLX string to point to the new locations in the course.
-    """
-    store = modulestore()
-    if hasattr(downstream_xblock, "data"):
-        data_with_substitutions = downstream_xblock.data
-        for old_static_ref, new_static_ref in substitutions.items():
-            data_with_substitutions = _replace_strings(
-                data_with_substitutions,
-                old_static_ref,
-                new_static_ref,
-            )
-        downstream_xblock.data = data_with_substitutions
-        store.update_item(downstream_xblock, user_id)
-
-    for child in downstream_xblock.get_children():
-        _rewrite_static_asset_references(child, substitutions, user_id)
-
-
 def _insert_static_files_into_downstream_xblock(
     downstream_xblock: XBlock, staged_content_id: int, request
 ) -> StaticFileNotices:
@@ -330,12 +308,21 @@ def _insert_static_files_into_downstream_xblock(
             static_files=static_files,
         )
 
-    if substitutions:
-        # Rewrite the OLX's static asset references to point to the new
-        # locations for those assets. See _import_files_into_course for more
-        # info on why this is necessary.
-        _rewrite_static_asset_references(downstream_xblock, substitutions, request.user.id)
-
+    # Rewrite the OLX's static asset references to point to the new
+    # locations for those assets. See _import_files_into_course for more
+    # info on why this is necessary.
+    store = modulestore()
+    if hasattr(downstream_xblock, "data") and substitutions:
+        data_with_substitutions = downstream_xblock.data
+        for old_static_ref, new_static_ref in substitutions.items():
+            data_with_substitutions = _replace_strings(
+                data_with_substitutions,
+                old_static_ref,
+                new_static_ref,
+            )
+        downstream_xblock.data = data_with_substitutions
+        if store is not None:
+            store.update_item(downstream_xblock, request.user.id)
     return notices
 
 
@@ -388,10 +375,9 @@ def import_staged_content_from_user_clipboard(parent_key: UsageKey, request) -> 
             parent_xblock,
             store,
             user=request.user,
-            slug_hint=(
-                user_clipboard.source_usage_key.block_id
-                if isinstance(user_clipboard.source_usage_key, UsageKey) else None
-            ),
+            slug_hint=user_clipboard.source_usage_key.block_id,
+            copied_from_block=str(user_clipboard.source_usage_key),
+            copied_from_version_num=user_clipboard.content.version_num,
             tags=user_clipboard.content.tags,
         )
 
@@ -455,7 +441,7 @@ def _fetch_and_set_upstream_link(
     Fetch and set upstream link for the given xblock which is being pasted. This function handles following cases:
     * the xblock is copied from a v2 library; the library block is set as upstream.
     * the xblock is copied from a course; no upstream is set, only copied_from_block is set.
-    * the xblock is copied from a course where the source block was imported from a library; the original library block
+    * the xblock is copied from a course where the source block was imported from a library; the original libary block
       is set as upstream.
     """
     # Try to link the pasted block (downstream) to the copied block (upstream).
@@ -494,14 +480,6 @@ def _fetch_and_set_upstream_link(
         # new values from the published upstream content.
         if isinstance(upstream_link.upstream_key, UsageKey):  # only if upstream is a block, not a container
             fetch_customizable_fields_from_block(downstream=temp_xblock, user=user, upstream=temp_xblock)
-            # Although the above function will set all customisable fields to match its upstream_* counterpart
-            # We copy the downstream_customized list to the new block to avoid overriding user customisations on sync
-            # So we will have:
-            # temp_xblock.display_name == temp_xblock.upstream_display_name
-            # temp_xblock.data == temp_xblock.upstream_data   # for html blocks
-            # Even then we want to set `downstream_customized` value to avoid overriding user customisations on sync
-            downstream_customized = temp_xblock.xml_attributes.get("downstream_customized", '[]')
-            temp_xblock.downstream_customized = json.loads(downstream_customized)
 
 
 def _import_xml_node_to_parent(
@@ -513,8 +491,13 @@ def _import_xml_node_to_parent(
     user: User,
     # Hint to use as usage ID (block_id) for the new XBlock
     slug_hint: str | None = None,
+    # UsageKey of the XBlock that this one is a copy of
+    copied_from_block: str | None = None,
+    # Positive int version of source block, if applicable (e.g., library block).
+    # Zero if not applicable (e.g., course block).
+    copied_from_version_num: int = 0,
     # Content tags applied to the source XBlock(s)
-    tags: TagValuesByObjectIdDict | None = None,
+    tags: dict[str, str] | None = None,
 ) -> XBlock:
     """
     Given an XML node representing a serialized XBlock (OLX), import it into modulestore 'store' as a child of the
@@ -525,11 +508,9 @@ def _import_xml_node_to_parent(
     runtime = parent_xblock.runtime
     parent_key = parent_xblock.scope_ids.usage_id
     block_type = node.tag
-    node_copied_from = node.attrib.get('copied_from_block', None)
-    node_copied_version = node.attrib.get('copied_from_version', None)
 
     # Modulestore's IdGenerator here is SplitMongoIdManager which is assigned
-    # by SplitModuleStoreRuntime and since we need our custom ImportIdGenerator
+    # by CachingDescriptorSystem Runtime and since we need our custom ImportIdGenerator
     # here we are temporaraliy swtiching it.
     original_id_generator = runtime.id_generator
 
@@ -566,8 +547,7 @@ def _import_xml_node_to_parent(
     else:
         # We have to handle the children ourselves, because there are lots of complex interactions between
         #    * the vanilla XBlock parse_xml() method, and its lack of API for "create and save a new XBlock"
-        #    * the XmlMixin version of parse_xml() which only works with XMLImportingModuleStoreRuntime,
-        #      not modulestore or the v2 runtime
+        #    * the XmlMixin version of parse_xml() which only works with ImportSystem, not modulestore or the v2 runtime
         #    * the modulestore APIs for creating and saving a new XBlock, which work but don't support XML parsing.
         # We can safely assume that if the XBLock class supports children, every child node will be the XML
         # serialization of a child block, in order. For blocks that don't support children, their XML content/nodes
@@ -585,10 +565,8 @@ def _import_xml_node_to_parent(
 
     if xblock_class.has_children and temp_xblock.children:
         raise NotImplementedError("We don't yet support pasting XBlocks with children")
-
-    if node_copied_from:
-        _fetch_and_set_upstream_link(node_copied_from, node_copied_version, temp_xblock, user)
-
+    if copied_from_block:
+        _fetch_and_set_upstream_link(copied_from_block, copied_from_version_num, temp_xblock, user)
     # Save the XBlock into modulestore. We need to save the block and its parent for this to work:
     new_xblock = store.update_item(temp_xblock, user.id, allow_not_found=True)
     new_xblock.parent = parent_key
@@ -604,23 +582,26 @@ def _import_xml_node_to_parent(
 
     if not children_handled:
         for child_node in child_nodes:
+            child_copied_from = _get_usage_key_from_node(child_node, copied_from_block) if copied_from_block else None
             _import_xml_node_to_parent(
                 child_node,
                 new_xblock,
                 store,
                 user=user,
+                copied_from_block=str(child_copied_from),
                 tags=tags,
             )
 
     # Copy content tags to the new xblock
     if new_xblock.upstream:
+        # If this block is synced from an upstream (e.g. library content),
         # copy the tags from the upstream as ready-only
         content_tagging_api.copy_tags_as_read_only(
             new_xblock.upstream,
             new_xblock.location,
         )
-    elif tags and node_copied_from:
-        object_tags = tags.get(node_copied_from)
+    elif copied_from_block and tags:
+        object_tags = tags.get(str(copied_from_block))
         if object_tags:
             content_tagging_api.set_all_object_tags(
                 content_key=new_xblock.location,
@@ -746,10 +727,10 @@ def _import_file_into_course(
         if thumbnail_content is not None:
             content.thumbnail_location = thumbnail_location
         contentstore().save(content)
-        return True, {clipboard_file_path: filename if not import_path else f"static/{import_path}"}
+        return True, {clipboard_file_path: f"static/{import_path}"}
     elif current_file.content_digest == file_data_obj.md5_hash:
-        # The file already exists and matches exactly, so no action is needed
-        return None, {}
+        # The file already exists and matches exactly, so no action is needed except substitutions
+        return None, {clipboard_file_path: f"static/{import_path}"}
     else:
         # There is a conflict with some other file that has the same name.
         return False, {}
@@ -811,6 +792,27 @@ def is_item_in_course_tree(item):
         ancestor = ancestor.get_parent()
 
     return ancestor is not None
+
+
+def _get_usage_key_from_node(node, parent_id: str) -> UsageKey | None:
+    """
+    Returns the UsageKey for the given node and parent ID.
+
+    If the parent_id is not a valid UsageKey, or there's no "url_name" attribute in the node, then will return None.
+    """
+    parent_key = UsageKey.from_string(parent_id)
+    parent_context = parent_key.context_key
+    usage_key = None
+    block_id = node.attrib.get("url_name")
+    block_type = node.tag
+
+    if parent_context and block_id and block_type:
+        usage_key = parent_context.make_usage_key(
+            block_type=block_type,
+            block_id=block_id,
+        )
+
+    return usage_key
 
 
 def concat_static_file_notices(notices: list[StaticFileNotices]) -> StaticFileNotices:
