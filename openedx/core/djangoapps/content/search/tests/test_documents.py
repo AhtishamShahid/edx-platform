@@ -562,7 +562,9 @@ class StudioDocumentsTest(SharedModuleStoreTestCase):
             "num_children": 0,
             "content": {
                 "child_usage_keys": [],
-                "child_display_names": [],
+            "content": {
+                "child_usage_keys": [],
+            },
             },
             "publish_status": "never",
             "context_key": "lib:edX:2012_Fall",
@@ -608,9 +610,10 @@ class StudioDocumentsTest(SharedModuleStoreTestCase):
                 "child_usage_keys": [
                     "lb:edX:2012_Fall:html:text2",
                 ],
-                "child_display_names": [
-                    "Text",
-                ],
+                "content": {
+                    "child_usage_keys": ["lb:edX:2012_Fall:html:text2"],
+                    "child_display_names": [],
+                },
             },
             "publish_status": "published",
             "context_key": "lib:edX:2012_Fall",
@@ -630,9 +633,9 @@ class StudioDocumentsTest(SharedModuleStoreTestCase):
                     "child_usage_keys": [
                         "lb:edX:2012_Fall:html:text2",
                     ],
-                    "child_display_names": [
-                        "Text",
-                    ],
+            "content": {
+                "child_usage_keys": [],
+            },
                 },
             },
         }
@@ -681,10 +684,12 @@ class StudioDocumentsTest(SharedModuleStoreTestCase):
                     "lb:edX:2012_Fall:html:text2",
                     "lb:edX:2012_Fall:html:text3",
                 ],
-                "child_display_names": [
-                    "Text",
-                    "Text",
-                ],
+                "content": {
+                    "child_usage_keys": [
+                        "lb:edX:2012_Fall:html:text2",
+                    ],
+                    "child_display_names": [],
+                },
             },
             "publish_status": "modified",
             "context_key": "lib:edX:2012_Fall",
@@ -704,9 +709,11 @@ class StudioDocumentsTest(SharedModuleStoreTestCase):
                     "child_usage_keys": [
                         "lb:edX:2012_Fall:html:text2",
                     ],
-                    "child_display_names": [
-                        "Text",
-                    ],
+                "display_name": "A Unit in the Search Index",
+                "content": {
+                    "child_usage_keys": ["lb:edX:2012_Fall:html:text2"],
+                    "child_display_names": [],
+                },
                 },
             },
         }
@@ -827,4 +834,6 @@ class StudioDocumentsTest(SharedModuleStoreTestCase):
         doc.update(searchable_doc_tags(block.usage_key))
         result = doc['description'].split('|||')
         for i, eqn in enumerate(result):
+            assert eqn.strip() == eqns[i][1]
+lt):
             assert eqn.strip() == eqns[i][1]

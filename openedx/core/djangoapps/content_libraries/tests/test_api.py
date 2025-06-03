@@ -541,7 +541,7 @@ class ContentLibraryCollectionsTest(ContentLibrariesRestApiTest):
         collection_update_event_receiver = mock.Mock()
         LIBRARY_COLLECTION_UPDATED.connect(collection_update_event_receiver)
         assert not list(self.col2.entities.all())
-        component = api.get_component_from_usage_key(UsageKeyV2.from_string(self.lib2_problem_block["id"]))
+        component = api.get_component_from_usage_key(UsageKey.from_string(self.lib2_problem_block["id"]))
         api.set_library_item_collections(
             library_key=self.lib2.library_key,
             entity_key=component.publishable_entity.key,

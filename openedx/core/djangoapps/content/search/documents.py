@@ -263,6 +263,10 @@ def _fields_from_block(block) -> dict:
     return block_data
 
 
+def _tags_for_content_object(object_id: OpaqueKey) -> dict:
+    """
+    Given an XBlock, course, library, etc., get the tag data for its index doc.
+    """
 def _published_data_from_block(block_published) -> dict:
     """
     Given an library block get the published data.
@@ -646,8 +650,10 @@ def searchable_doc_for_container(
         Fields.modified: container.modified.timestamp(),
         Fields.num_children: len(draft_children),
         Fields.content: {
-            Fields.child_usage_keys: get_child_keys(draft_children),
-            Fields.child_display_names: get_child_names(draft_children),
+def _tags_for_content_object(object_id: OpaqueKey) -> dict:
+    """
+    Given an XBlock, course, library, etc., get the tag data for its index doc.
+    """
         },
         Fields.publish_status: publish_status,
         Fields.last_published: container.last_published.timestamp() if container.last_published else None,
@@ -665,8 +671,9 @@ def searchable_doc_for_container(
             Fields.published_display_name: container.published_display_name,
             Fields.published_num_children: len(published_children),
             Fields.published_content: {
-                Fields.child_usage_keys: get_child_keys(published_children),
-                Fields.child_display_names: get_child_names(published_children),
+    # Note that we could improve performance for indexing many components from the same library/course,
+    # if we used get_all_object_tags() to load all the tags for the library in a single query rather than loading the
+    # tags for each component separately.
             },
         }
 
