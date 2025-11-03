@@ -13,6 +13,8 @@ from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
+from edly_features_app.overrides.emails import should_send_email, create_user_unsubscribe_url
+from edly_features_app.constants import ROLE_ASSIGNED, ROLE_REVOKED
 
 from cms.djangoapps.course_creators.models import (
     CourseCreator,
@@ -22,6 +24,9 @@ from cms.djangoapps.course_creators.models import (
 )
 from cms.djangoapps.course_creators.views import update_course_creator_group, update_org_content_creator_role
 from common.djangoapps.edxmako.shortcuts import render_to_string
+from openedx.core.djangoapps.ace_common.template_context import get_base_template_context
+from openedx.core.djangoapps.theming.helpers import get_current_site
+import types
 
 log = logging.getLogger("studio.coursecreatoradmin")
 
@@ -144,6 +149,18 @@ def send_user_notification_callback(sender, **kwargs):  # pylint: disable=unused
 
     studio_request_email = settings.FEATURES.get('STUDIO_REQUEST_EMAIL', '')
     context = {'studio_request_email': studio_request_email}
+    
+    # we need to mock Edx ace context to check if the email should be sent
+    site = get_current_site()
+    dummy_context = get_base_template_context(site)
+    dummy_context['tenant_key'] = settings.EDNX_TENANT_KEY
+    dummy_message = types.SimpleNamespace(
+        name=ROLE_ASSIGNED if updated_state == CourseCreator.GRANTED else ROLE_REVOKED,
+        context=dummy_context,
+        recipient=types.SimpleNamespace(email_address=user.email),
+    )
+    if not should_send_email(dummy_message):
+        return
 
     subject = render_to_string('emails/course_creator_subject.txt', context)
     subject = ''.join(subject.splitlines())
@@ -154,6 +171,12 @@ def send_user_notification_callback(sender, **kwargs):  # pylint: disable=unused
     else:
         # changed to unrequested or pending
         message_template = 'emails/course_creator_revoked.txt'
+
+    context['unsubscribe_url'] = create_user_unsubscribe_url(
+        user.email, 
+        getattr(settings, 'PANEL_NOTIFICATIONS_BASE_URL', None), 
+        getattr(settings, 'EDNX_TENANT_KEY', None),
+    )
     message = render_to_string(message_template, context)
 
     try:
