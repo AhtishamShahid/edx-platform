@@ -22,6 +22,7 @@ from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.debug import sensitive_post_parameters
 from django_countries import countries
+from edly_features_app.filters import RegistrationValidationRequested
 from edx_django_utils.monitoring import set_custom_attribute
 from openedx_events.learning.data import UserData, UserPersonalData
 from openedx_events.learning.signals import STUDENT_REGISTRATION_COMPLETED
@@ -916,5 +917,11 @@ class RegistrationValidationView(APIView):
         response_dict = {'validation_decisions': validation_decisions}
         if self.username_suggestions:
             response_dict['username_suggestions'] = self.username_suggestions
+
+        # EDLYCUSTOM: we need to return extra info when adding user from panel
+        response_dict, _ = RegistrationValidationRequested.run_filter(
+            response_dict=response_dict,
+            request=request,
+        )
 
         return Response(response_dict)
