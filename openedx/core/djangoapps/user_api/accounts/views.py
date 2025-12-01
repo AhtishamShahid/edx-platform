@@ -67,6 +67,7 @@ from openedx.core.djangoapps.site_configuration import helpers as configuration_
 from openedx.core.djangoapps.user_api import accounts
 from openedx.core.djangoapps.user_api.accounts.image_helpers import get_profile_image_names, set_has_profile_image
 from openedx.core.djangoapps.user_api.accounts.utils import handle_retirement_cancellation
+from openedx.core.djangoapps.user_authn.cookies import delete_logged_in_cookies
 from openedx.core.djangoapps.user_authn.exceptions import AuthFailedError
 from openedx.core.lib.api.authentication import BearerAuthentication, BearerAuthenticationAllowInactiveUser
 from openedx.core.lib.api.parsers import MergePatchParser
@@ -593,7 +594,11 @@ class DeactivateLogoutView(APIView):
 
                 # Log the user out.
                 logout(request)
-            return Response(status=status.HTTP_204_NO_CONTENT)
+            
+            # EDLYCUSTOM: delete cookies after account deletion, to restrict wordpress access
+            response = Response(status=status.HTTP_204_NO_CONTENT)
+            delete_logged_in_cookies(response)
+            return response
         except KeyError:
             log.exception(f"Username not specified {request.user}")
             return Response("Username not specified.", status=status.HTTP_404_NOT_FOUND)
