@@ -10,7 +10,11 @@ from django.contrib.auth import get_user_model
 from django.contrib.sites.models import Site
 from django.core.cache import cache
 from django.core.management import BaseCommand
+from edly_features_app.constants import DEACTIVATED, TRIAL_EXPIRED
+from edly_features_app.models import EdlyTenant
+from edly_features_app.utils import get_tenant_config_value, get_tenants_filter_by_plan
 
+from common.djangoapps.util.query import read_replica_or_default
 from openedx.core.djangoapps.catalog.cache import (
     CATALOG_COURSE_PROGRAMS_CACHE_KEY_TPL,
     COURSE_PROGRAMS_CACHE_KEY_TPL,
@@ -77,18 +81,32 @@ class Command(BaseCommand):
         programs_by_type = {}
         programs_by_type_slug = {}
         organizations = {}
-
-        sites = Site.objects.filter(domain=domain) if domain else Site.objects.all()
+        
+        # EDLYCUSTOM: we need to filter active site and grab the catalog api url from tenant config
+        active_tenants = EdlyTenant.objects.using(read_replica_or_default()).filter(is_active=True)
+        tenants_with_active_plans = get_tenants_filter_by_plan(
+            tenants=active_tenants,
+            exclude_plan=[TRIAL_EXPIRED, DEACTIVATED],
+        )
+        domain_to_catalog_url = {
+            get_tenant_config_value(tenant, 'SITE_NAME'): get_tenant_config_value(tenant, 'COURSE_CATALOG_API_URL')
+            for tenant in tenants_with_active_plans
+        }
+        sites = Site.objects.using(read_replica_or_default()).filter(
+            domain__in=[domain]
+            if domain
+            else domain_to_catalog_url.keys()
+        )
         for site in sites:
-            site_config = getattr(site, 'configuration', None)
-            if site_config is None or not site_config.get_value('COURSE_CATALOG_API_URL'):
+            catalog_api_url = domain_to_catalog_url[site.domain]
+            if not catalog_api_url:
                 logger.info(f'Skipping site {site.domain}. No configuration.')
                 cache.set(SITE_PROGRAM_UUIDS_CACHE_KEY_TPL.format(domain=site.domain), [], None)
                 cache.set(SITE_PATHWAY_IDS_CACHE_KEY_TPL.format(domain=site.domain), [], None)
                 continue
 
             client = get_catalog_api_client(user)
-            api_base_url = get_catalog_api_base_url(site=site)
+            api_base_url = catalog_api_url
             uuids, program_uuids_failed = self.get_site_program_uuids(client, site, api_base_url)
             new_programs, program_details_failed = self.fetch_program_details(client, uuids, api_base_url)
             new_pathways, pathways_failed = self.get_pathways(client, site, api_base_url)
@@ -154,7 +172,7 @@ class Command(BaseCommand):
         try:
             querystring = {
                 'exclude_utm': 1,
-                'status': ('active', 'retired'),
+                'status': ('active', 'retired', 'unpublished'),
                 'uuids_only': 1,
             }
             api_url = urljoin(f"{api_base_url}/", "programs/")
