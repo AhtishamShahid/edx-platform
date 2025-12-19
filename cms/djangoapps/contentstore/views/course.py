@@ -23,6 +23,7 @@ from django.utils.translation import gettext as _
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_http_methods
 from edly_features_app.filters import CoursesRequested, OrganizationsRequested
+from edly_features_app.roles import GlobalCourseCreatorRole
 from edx_django_utils.monitoring import function_trace
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey
@@ -318,9 +319,12 @@ def course_rerun_handler(request, course_key_string):
         html: return html page with form to rerun a course for the given course id
     """
     # Only global staff (PMs) are able to rerun courses during the soft launch
-    if not GlobalStaff().has_user(request.user):
-        raise PermissionDenied()
+    #EDLYCUSTOM: Permit global course creators to access rerun status
+
     course_key = CourseKey.from_string(course_key_string)
+    if not GlobalStaff().has_user(request.user) and not GlobalCourseCreatorRole(course_key.org).has_user(request.user):
+        raise PermissionDenied()
+
     with modulestore().bulk_operations(course_key):
         course_block = get_course_and_check_access(course_key, request.user, depth=3)
         if request.method == 'GET':
@@ -535,7 +539,9 @@ def _accessible_courses_list_from_groups(request):
 
     instructor_courses = UserBasedRole(request.user, CourseInstructorRole.ROLE).courses_with_role()
     staff_courses = UserBasedRole(request.user, CourseStaffRole.ROLE).courses_with_role()
-    all_courses = list(filter(filter_ccx, instructor_courses | staff_courses))
+    #EDLYCUSTOM: Include Global Course Creators of org as site courses 
+    site_courses = UserBasedRole(request.user, GlobalCourseCreatorRole.ROLE).courses_with_role()
+    all_courses = list(filter(filter_ccx, instructor_courses | staff_courses | site_courses))
     courses_list = []
     course_keys = {}
 
