@@ -97,6 +97,12 @@ def get_user_permissions(user, course_key, org=None, service_variant=None):
     # global staff, org instructors, and course instructors have all permissions:
     if GlobalStaff().has_user(user) or OrgInstructorRole(org=org).has_user(user):
         return all_perms
+
+    #EDLYCUSTOM: Provide all course permissions to Global Course Creators
+    from edly_features_app.roles import GlobalCourseCreatorRole
+    if GlobalCourseCreatorRole(org).has_user(user):
+        return all_perms
+
     if course_key and user_has_role(user, CourseInstructorRole(course_key)):
         return all_perms
     # HACK: Limited Staff should not have studio read access. However, since many LMS views depend on the

@@ -1746,7 +1746,8 @@ def get_home_context(request, no_course=False):
         'user': user,
         'request_course_creator_url': reverse('request_course_creator'),
         'course_creator_status': _get_course_creator_status(user),
-        'rerun_creator_status': GlobalStaff().has_user(user),
+        #EDLYCUSTOM: we need to have same permission for rerun creator as course creator
+        'rerun_creator_status': _get_course_creator_status(user) == 'granted',
         'allow_unicode_course_id': settings.FEATURES.get('ALLOW_UNICODE_COURSE_ID', False),
         'allow_course_reruns': settings.FEATURES.get('ALLOW_COURSE_RERUNS', True),
         'active_tab': 'courses',
