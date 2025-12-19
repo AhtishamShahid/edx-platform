@@ -10,11 +10,8 @@ from django.contrib.auth import get_user_model
 from django.contrib.sites.models import Site
 from django.core.cache import cache
 from django.core.management import BaseCommand
-from edly_features_app.constants import DEACTIVATED, TRIAL_EXPIRED
-from edly_features_app.models import EdlyTenant
-from edly_features_app.utils import get_tenant_config_value, get_tenants_filter_by_plan
+from edly_features_app.utils import get_active_tenant_sites_with_catalog_urls
 
-from common.djangoapps.util.query import read_replica_or_default
 from openedx.core.djangoapps.catalog.cache import (
     CATALOG_COURSE_PROGRAMS_CACHE_KEY_TPL,
     COURSE_PROGRAMS_CACHE_KEY_TPL,
@@ -81,22 +78,9 @@ class Command(BaseCommand):
         programs_by_type = {}
         programs_by_type_slug = {}
         organizations = {}
-        
+
         # EDLYCUSTOM: we need to filter active site and grab the catalog api url from tenant config
-        active_tenants = EdlyTenant.objects.using(read_replica_or_default()).filter(is_active=True)
-        tenants_with_active_plans = get_tenants_filter_by_plan(
-            tenants=active_tenants,
-            exclude_plan=[TRIAL_EXPIRED, DEACTIVATED],
-        )
-        domain_to_catalog_url = {
-            get_tenant_config_value(tenant, 'SITE_NAME'): get_tenant_config_value(tenant, 'COURSE_CATALOG_API_URL')
-            for tenant in tenants_with_active_plans
-        }
-        sites = Site.objects.using(read_replica_or_default()).filter(
-            domain__in=[domain]
-            if domain
-            else domain_to_catalog_url.keys()
-        )
+        sites, domain_to_catalog_url = get_active_tenant_sites_with_catalog_urls(domain)
         for site in sites:
             catalog_api_url = domain_to_catalog_url[site.domain]
             if not catalog_api_url:
