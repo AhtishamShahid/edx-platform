@@ -12,6 +12,7 @@ class ProgramModel extends Backbone.Model {
                 subtitle: data.subtitle,
                 authoring_organizations: data.authoring_organizations,
                 detailUrl: data.detail_url,
+                cardImageUrl: data.card_image_url,
                 xsmallBannerUrl: (data.banner_image && data.banner_image['x-small']) ? data.banner_image['x-small'].url : '',
                 smallBannerUrl: (data.banner_image && data.banner_image.small) ? data.banner_image.small.url : '',
                 mediumBannerUrl: (data.banner_image && data.banner_image.medium) ? data.banner_image.medium.url : '',
