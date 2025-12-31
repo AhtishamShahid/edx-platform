@@ -30,6 +30,7 @@ class CourseGradeBase:
         letter_grade=None,
         passed=False,
         force_update_subsections=False,
+        passed_timestamp=None,
         last_updated=None
     ):
         self.user = user
@@ -43,6 +44,9 @@ class CourseGradeBase:
         self.force_update_subsections = force_update_subsections
 
         self.last_updated = last_updated
+
+        # EDLYCUSTOM: this timestamp is used to mark a course as completed in edly panel via figures LCGM
+        self.passed_timestamp = passed_timestamp
 
     def __str__(self):
         return 'Course Grade: percent: {}, letter_grade: {}, passed: {}'.format(

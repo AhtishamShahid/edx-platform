@@ -144,6 +144,7 @@ class CourseGradeFactory:
             persistent_grade.percent_grade,
             persistent_grade.letter_grade,
             persistent_grade.letter_grade != '',
+            passed_timestamp=persistent_grade.passed_timestamp,
             last_updated=persistent_grade.modified
         )
 
