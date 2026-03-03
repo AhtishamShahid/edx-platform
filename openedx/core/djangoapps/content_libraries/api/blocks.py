@@ -347,6 +347,8 @@ def create_library_block(
 
     # Now return the metadata about the new block:
 
+    log.info(f"DEBUG: create_library_block - About to emit LIBRARY_BLOCK_CREATED for {usage_key}")
+
     # .. event_implemented_name: LIBRARY_BLOCK_CREATED
     # .. event_type: org.openedx.content_authoring.library_block.created.v1
     LIBRARY_BLOCK_CREATED.send_event(
@@ -355,6 +357,8 @@ def create_library_block(
             usage_key=usage_key
         )
     )
+
+    log.info(f"DEBUG: create_library_block - LIBRARY_BLOCK_CREATED signal handlers completed, returning response")
 
     return get_library_block(usage_key)
 

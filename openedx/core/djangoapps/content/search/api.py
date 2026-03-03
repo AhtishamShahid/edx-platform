@@ -37,7 +37,7 @@ from openedx.core.djangoapps.content.search.index_config import (
     INDEX_SEARCHABLE_ATTRIBUTES,
     INDEX_SORTABLE_ATTRIBUTES
 )
-from openedx.core.djangoapps.content.search.models import IncrementalIndexCompleted, get_access_ids_for_request
+from openedx.core.djangoapps.content.search.models import IncrementalIndexCompleted, SearchAccess, get_access_ids_for_request
 from openedx.core.djangoapps.content_libraries import api as lib_api
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
@@ -299,6 +299,8 @@ def _update_index_docs(docs) -> None:
     if not docs:
         return
 
+    log.info(f"DEBUG: _update_index_docs called with {len(docs)} doc(s): {[d.get('id', 'no-id') for d in docs]}")
+
     client = _get_meilisearch_client()
     current_rebuild_index_name = _get_running_rebuild_index_name()
 
@@ -308,7 +310,9 @@ def _update_index_docs(docs) -> None:
         tasks.append(client.index(current_rebuild_index_name).update_documents(docs))
     tasks.append(client.index(STUDIO_INDEX_NAME).update_documents(docs))
 
+    log.info(f"DEBUG: _update_index_docs waiting for {len(tasks)} Meilisearch task(s)...")
     _wait_for_meili_tasks(tasks)
+    log.info("DEBUG: _update_index_docs all Meilisearch tasks completed successfully")
 
 
 def only_if_meilisearch_enabled(f):
@@ -877,6 +881,12 @@ def upsert_content_library_index_docs(library_key: LibraryLocatorV2, full_index:
     """
     Creates or updates the documents for the given Content Library in the search index
     """
+    # Ensure SearchAccess exists for this library. This is needed so that users get
+    # access to the library in their JWT token immediately after creating it, even
+    # before any content is added. Without this, users would need to refresh the page
+    # after creating a library to get a token with the new access_id.
+    SearchAccess.objects.get_or_create(context_key=library_key)
+
     docs = []
     for component in lib_api.get_library_components(library_key):
         metadata = lib_api.LibraryXBlockMetadata.from_component(library_key, component)
