@@ -54,14 +54,26 @@ COMMITS=$(git log --oneline --reverse --no-merges origin/$TARGET_BRANCH..origin/
 for COMMIT in $COMMITS; do
   echo "Cherry-picking $COMMIT ..."
   if ! git cherry-pick "$COMMIT" --no-commit; then
-    # Conflict occurred — resolve it
-    # (see "Conflict resolution" section below)
+    # Conflict occurred — resolve based on CONFLICT_STRATEGY
+    if [ "$CONFLICT_STRATEGY" = "theirs" ]; then
+      git checkout --theirs .
+      git add .
+    elif [ "$CONFLICT_STRATEGY" = "ours" ]; then
+      git checkout --ours .
+      git add .
+    else
+      echo "MANUAL resolution needed for $COMMIT"
+      echo "Conflicted files:"
+      git diff --name-only --diff-filter=U
+      # Resolve each file, then: git add <file>
+      # After resolving all files, the loop continues to commit
+    fi
   fi
 
   # Check if the cherry-pick produced any changes
   if git diff --cached --quiet; then
     echo "SKIP: $COMMIT is empty (already in target)"
-    git cherry-pick --skip 2>/dev/null || git reset
+    git cherry-pick --skip 2>/dev/null || git reset --hard HEAD
     continue
   fi
 
@@ -76,7 +88,8 @@ done
 
 ### 4. Conflict resolution
 
-When a cherry-pick conflicts:
+The cherry-pick loop in Step 3 handles conflicts inline. Below is a detailed
+reference for each strategy:
 
 **If `CONFLICT_STRATEGY=theirs` (prefer source branch):**
 ```bash
