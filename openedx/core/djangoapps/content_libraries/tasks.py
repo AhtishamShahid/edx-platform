@@ -512,7 +512,6 @@ class LibraryBackupTask(UserTask):  # pylint: disable=abstract-method
     """
     Base class for tasks related with Library backup functionality.
     """
-    NAME_PREFIX = "Library Learning Package Backup"
 
     @classmethod
     def generate_name(cls, arguments_dict) -> str:
@@ -530,7 +529,7 @@ class LibraryBackupTask(UserTask):  # pylint: disable=abstract-method
             str: The generated name
         """
         key = arguments_dict['library_key_str']
-        return f'{cls.NAME_PREFIX} of {key}'
+        return f'Backup of {key}'
 
 
 @shared_task(base=LibraryBackupTask, bind=True)
@@ -592,12 +591,10 @@ class LibraryRestoreTask(UserTask):
 
     ERROR_LOG_ARTIFACT_NAME = 'Error log'
 
-    NAME_PREFIX = "Library Learning Package Restore"
-
     @classmethod
     def generate_name(cls, arguments_dict):
         storage_path = arguments_dict['storage_path']
-        return f'{cls.NAME_PREFIX} of {storage_path}'
+        return f'learning package restore of {storage_path}'
 
     def fail_with_error_log(self, logfile) -> None:
         """

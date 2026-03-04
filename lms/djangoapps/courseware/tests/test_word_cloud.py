@@ -113,7 +113,7 @@ class _TestWordCloudBase(BaseTestXmodule):
             self.assertListEqual(top_words_content, top_words_correct)
 
     def test_initial_state(self):
-        """Initial state of word cloud is correct. Those state that
+        """Inital state of word cloud is correct. Those state that
         is sended from server to frontend, when students load word
         cloud page.
         """
@@ -135,7 +135,7 @@ class _TestWordCloudBase(BaseTestXmodule):
             assert response_content == correct_initial_data
 
     def test_post_words(self):
-        """Students can submit data successfully.
+        """Students can submit data succesfully.
         Word cloud data properly updates after students submit.
         """
         input_words = [
@@ -178,16 +178,16 @@ class _TestWordCloudBase(BaseTestXmodule):
     def test_collective_users_submits(self):
         """Test word cloud data flow per single and collective users submits.
 
-            Makes sure that:
+            Make sures that:
 
-            1. Initial state of word cloud is correct. Those state that
+            1. Inital state of word cloud is correct. Those state that
             is sended from server to frontend, when students load word
             cloud page.
 
-            2. Students can submit data successfully.
+            2. Students can submit data succesfully.
 
             3. Next submits produce "already voted" error. Next submits for user
-            are not allowed by user interface, but technically it possible, and
+            are not allowed by user interface, but techically it possible, and
             word_cloud should properly react.
 
             4. State of word cloud after #3 is still as after #2.

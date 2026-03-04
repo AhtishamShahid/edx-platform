@@ -108,8 +108,6 @@ __all__ = [
     "get_backup_task_status",
     "assign_library_role_to_user",
     "user_has_permission_across_lib_authz_systems",
-    "is_library_backup_task",
-    "is_library_restore_task",
 ]
 
 
@@ -703,7 +701,6 @@ def get_allowed_block_types(library_key: LibraryLocatorV2):  # pylint: disable=u
     for block_type in enabled_block_types:
         # TODO: unify the contentstore helper with the xblock.api version of
         # xblock_type_display_name
-        # https://github.com/openedx/edx-platform/issues/37637
         display_name = studio_helpers.xblock_type_display_name(block_type, None)
         # For now as a crude heuristic, we exclude blocks that don't have a display_name
         if display_name:
@@ -854,15 +851,3 @@ def _is_legacy_permission(permission: str) -> bool:
     or the new openedx-authz system.
     """
     return permission in LEGACY_LIB_PERMISSIONS
-
-
-def is_library_backup_task(task_name: str) -> bool:
-    """Case-insensitive match to see if a task is a library backup."""
-    from ..tasks import LibraryBackupTask  # avoid circular import error
-    return task_name.startswith(LibraryBackupTask.NAME_PREFIX.lower())
-
-
-def is_library_restore_task(task_name: str) -> bool:
-    """Case-insensitive match to see if a task is a library restore."""
-    from ..tasks import LibraryRestoreTask  # avoid circular import error
-    return task_name.startswith(LibraryRestoreTask.NAME_PREFIX.lower())

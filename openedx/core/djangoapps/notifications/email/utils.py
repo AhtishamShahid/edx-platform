@@ -22,7 +22,6 @@ from openedx.core.djangoapps.notifications.email_notifications import EmailCaden
 from openedx.core.djangoapps.notifications.events import notification_preference_unsubscribe_event
 from openedx.core.djangoapps.notifications.models import NotificationPreference
 from openedx.core.djangoapps.user_api.models import UserPreference
-from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 from xmodule.modulestore.django import modulestore
 
 from .notification_icons import NotificationTypeIcons
@@ -72,12 +71,7 @@ def get_unsubscribe_link(username):
     Returns unsubscribe url for username with patch preferences
     """
     encrypted_username = encrypt_string(username)
-    learning_microfrontend_url = configuration_helpers.get_value(
-        'LEARNING_MICROFRONTEND_URL',
-        settings.LEARNING_MICROFRONTEND_URL,
-    )
-
-    return f'{learning_microfrontend_url}/preferences-unsubscribe/{encrypted_username}/'
+    return f"{settings.LEARNING_MICROFRONTEND_URL}/preferences-unsubscribe/{encrypted_username}/"
 
 
 def create_email_template_context(username):
