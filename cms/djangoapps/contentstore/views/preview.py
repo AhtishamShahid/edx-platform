@@ -18,7 +18,6 @@ from xblock.django.request import django_to_webob_request, webob_to_django_respo
 from xblock.exceptions import NoSuchHandlerError
 from xblock.runtime import KvsFieldData
 
-from openedx.core.djangoapps.video_config.services import VideoConfigService
 from xmodule.contentstore.django import contentstore
 from xmodule.exceptions import NotFoundError, ProcessingError
 from xmodule.modulestore.django import XBlockI18nService, modulestore
@@ -215,8 +214,7 @@ def _prepare_runtime_for_preview(request, block):
         "teams_configuration": TeamsConfigurationService(),
         "sandbox": SandboxService(contentstore=contentstore, course_id=course_id),
         "cache": CacheService(cache),
-        'replace_urls': ReplaceURLService,
-        'video_config': VideoConfigService(),
+        'replace_urls': ReplaceURLService
     }
 
     block.runtime.get_block_for_descriptor = partial(_load_preview_block, request)

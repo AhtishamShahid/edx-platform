@@ -130,15 +130,16 @@ class HtmlBlockMixin(  # lint-amnesty, pylint: disable=abstract-method
             user = (
                 self.runtime.service(self, 'user')
                 .get_current_user()
+                
             )
             user_id = user.opt_attrs.get(ATTR_KEY_DEPRECATED_ANONYMOUS_USER_ID)
             if user_id:
                 data = data.replace("%%USER_ID%%", user_id)
             data = data.replace("%%COURSE_ID%%", str(self.scope_ids.usage_id.context_key))
-
-            if user.emails:
-                email = user.emails[0]
-                data = data.replace("%%USER_EMAIL%%", email)
+            
+            # EDLYCUSTOM: Replace %%USER_EMAIL%% with user's email in HTML xblock
+            email = user.emails[0]
+            data = data.replace("%%USER_EMAIL%%", email)
 
             return data
         return self.data

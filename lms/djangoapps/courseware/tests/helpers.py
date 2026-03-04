@@ -3,6 +3,8 @@ Helpers for courseware tests.
 """
 
 
+import ast
+import re
 import json
 from collections import OrderedDict
 from datetime import timedelta
@@ -442,27 +444,17 @@ def get_expiration_banner_text(user, course, language='en'):  # lint-amnesty, py
     return bannerText
 
 
-def get_context_from_dict(data):
+def get_context_dict_from_string(data):
     """
-     Retrieve validated dictionary from template's contextual data.
-
-    Args:
-        data: The context dictionary to validate
-
-    Returns:
-        dict: context dictionary
+    Retrieve dictionary from string.
     """
-    # Make a copy to avoid modifying the original dict
-    validated_data = data.copy()
-
+    # Replace tuple and un-necessary info from inside string and get the dictionary.
+    cleaned_data = data.split('((\'video.html\',')[1].replace("),\n {})", '').strip()
     # Omit user_id validation
-    validated_data.pop('user_id', None)
+    cleaned_data_without_user = re.sub(".*user_id.*\n?", '', cleaned_data)
 
-    # Handle metadata field - parse and sort to ensure consistent ordering
-    if 'metadata' in validated_data and validated_data['metadata'] is not None:
-        metadata_dict = json.loads(validated_data['metadata'])
-        validated_data['metadata'] = OrderedDict(
-            sorted(metadata_dict.items(), key=lambda t: t[0])
-        )
-
+    validated_data = ast.literal_eval(cleaned_data_without_user)
+    validated_data['metadata'] = OrderedDict(
+        sorted(json.loads(validated_data['metadata']).items(), key=lambda t: t[0])
+    )
     return validated_data

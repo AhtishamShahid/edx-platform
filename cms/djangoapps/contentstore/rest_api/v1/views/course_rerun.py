@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 from cms.djangoapps.contentstore.utils import get_course_rerun_context
 from cms.djangoapps.contentstore.rest_api.v1.serializers import CourseRerunSerializer
 from common.djangoapps.student.roles import GlobalStaff
+from edly_features_app.roles import GlobalCourseCreatorRole
 from openedx.core.lib.api.view_utils import DeveloperErrorViewMixin, verify_course_exists, view_auth_classes
 from xmodule.modulestore.django import modulestore
 
@@ -60,10 +61,12 @@ class CourseRerunView(DeveloperErrorViewMixin, APIView):
         ```
         """
 
-        if not GlobalStaff().has_user(request.user):
+        #EDLYCUSTOM: Permit global course creators to access rerun status
+        course_key = CourseKey.from_string(course_id)
+
+        if not GlobalStaff().has_user(request.user) and not GlobalCourseCreatorRole(course_key.org).has_user(request.user):
             self.permission_denied(request)
 
-        course_key = CourseKey.from_string(course_id)
         with modulestore().bulk_operations(course_key):
             course_block = modulestore().get_course(course_key)
             course_rerun_context = get_course_rerun_context(course_key, course_block, request.user)

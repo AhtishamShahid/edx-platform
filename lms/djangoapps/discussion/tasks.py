@@ -179,10 +179,9 @@ def _track_notification_sent(message, context):
 
 def _should_send_message(context):
     cc_thread_author = cc.User(id=context['thread_author_id'], course_id=context['course_id'])
+    # EDLYCUSTOM: we want to enable email notifications for thread replies
     return (
-        _is_user_subscribed_to_thread(cc_thread_author, context['thread_id']) and
-        _is_not_subcomment(context['comment_id']) and
-        not _comment_author_is_thread_author(context)
+        _is_user_subscribed_to_thread(cc_thread_author, context['thread_id'])
     )
 
 

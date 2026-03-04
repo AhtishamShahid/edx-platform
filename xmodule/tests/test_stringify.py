@@ -2,6 +2,7 @@
 Tests stringify functions used in xmodule html
 """
 
+
 from lxml import etree
 
 from xmodule.stringify import stringify_children
@@ -9,7 +10,7 @@ from xmodule.stringify import stringify_children
 
 def test_stringify():
     text = 'Hi <div x="foo">there <span>Bruce</span><b>!</b></div>'
-    html = f"""<html a="b" foo="bar">{text}</html>"""
+    html = f'''<html a="b" foo="bar">{text}</html>'''
     xml = etree.fromstring(html)
     out = stringify_children(xml)
     assert out == text

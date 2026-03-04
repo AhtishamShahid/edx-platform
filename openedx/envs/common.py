@@ -665,6 +665,17 @@ ENABLE_DISCUSSION_SERVICE = True
 # .. toggle_tickets: https://github.com/openedx/edx-platform/pull/3064
 ENABLE_TEXTBOOK = True
 
+# .. toggle_name: ENABLE_OAUTH2_PROVIDER
+# .. toggle_implementation: DjangoSetting
+# .. toggle_default: False
+# .. toggle_description: Enable this feature to allow this Open edX platform to be an OAuth2 authentication
+#   provider. This is necessary to enable some other features, such as the REST API for the mobile application.
+# .. toggle_use_cases: temporary
+# .. toggle_creation_date: 2014-09-09
+# .. toggle_target_removal_date: None
+# .. toggle_warning: This temporary feature toggle does not have a target removal date.
+ENABLE_OAUTH2_PROVIDER = False
+
 # Allows to configure the LMS to provide CORS headers to serve requests from other
 # domains
 ENABLE_CORS_HEADERS = False
@@ -754,7 +765,8 @@ EMBARGO = False
 #   toggle is uncertain.
 ENABLE_MKTG_SITE = False
 
-# Expose Mobile REST API.
+# Expose Mobile REST API. Note that if you use this, you must also set
+# ENABLE_OAUTH2_PROVIDER to True
 ENABLE_MOBILE_REST_API = False
 
 # Let students save and manage their annotations
@@ -1666,7 +1678,7 @@ XBLOCK_RUNTIME_V2_EPHEMERAL_DATA_CACHE = 'default'
 # .. toggle_warning: Not production-ready until https://github.com/openedx/edx-platform/issues/34840 is done.
 # .. toggle_creation_date: 2024-11-10
 # .. toggle_target_removal_date: 2025-06-01
-USE_EXTRACTED_WORD_CLOUD_BLOCK = True
+USE_EXTRACTED_WORD_CLOUD_BLOCK = False
 
 # .. toggle_name: USE_EXTRACTED_ANNOTATABLE_BLOCK
 # .. toggle_default: False
@@ -1676,7 +1688,7 @@ USE_EXTRACTED_WORD_CLOUD_BLOCK = True
 # .. toggle_warning: Not production-ready until https://github.com/openedx/edx-platform/issues/34841 is done.
 # .. toggle_creation_date: 2024-11-10
 # .. toggle_target_removal_date: 2025-06-01
-USE_EXTRACTED_ANNOTATABLE_BLOCK = True
+USE_EXTRACTED_ANNOTATABLE_BLOCK = False
 
 # .. toggle_name: USE_EXTRACTED_POLL_QUESTION_BLOCK
 # .. toggle_default: False
@@ -1686,7 +1698,7 @@ USE_EXTRACTED_ANNOTATABLE_BLOCK = True
 # .. toggle_warning: Not production-ready until https://github.com/openedx/edx-platform/issues/34839 is done.
 # .. toggle_creation_date: 2024-11-10
 # .. toggle_target_removal_date: 2025-06-01
-USE_EXTRACTED_POLL_QUESTION_BLOCK = True
+USE_EXTRACTED_POLL_QUESTION_BLOCK = False
 
 # .. toggle_name: USE_EXTRACTED_LTI_BLOCK
 # .. toggle_default: False
@@ -1706,7 +1718,7 @@ USE_EXTRACTED_LTI_BLOCK = False
 # .. toggle_warning: Not production-ready until relevant subtask https://github.com/openedx/edx-platform/issues/34827 is done.
 # .. toggle_creation_date: 2024-11-10
 # .. toggle_target_removal_date: 2025-06-01
-USE_EXTRACTED_HTML_BLOCK = True
+USE_EXTRACTED_HTML_BLOCK = False
 
 # .. toggle_name: USE_EXTRACTED_DISCUSSION_BLOCK
 # .. toggle_default: False
@@ -2068,8 +2080,8 @@ HELP_TOKENS_LANGUAGE_CODE = Derived(lambda settings: settings.LANGUAGE_CODE)
 HELP_TOKENS_VERSION = Derived(lambda settings: doc_version())
 
 HELP_TOKENS_BOOKS = {
-    'learner': 'https://docs.openedx.org/en/latest/learners',
-    'course_author': 'https://docs.openedx.org/en/latest/educators',
+    'learner': 'https://edx.readthedocs.io/projects/open-edx-learner-guide',
+    'course_author': 'https://edx.readthedocs.io/projects/open-edx-building-and-running-a-course',
 }
 
 ################################ Retirement ################################
@@ -2224,11 +2236,6 @@ EXPIRED_NOTIFICATIONS_DELETE_BATCH_SIZE = 10000
 NOTIFICATION_CREATION_BATCH_SIZE = 76
 NOTIFICATIONS_DEFAULT_FROM_EMAIL = "no-reply@example.com"
 NOTIFICATION_DIGEST_LOGO = DEFAULT_EMAIL_LOGO_URL
-
-# These settings are used to override the default notification preferences values for apps and types.
-# Here is complete documentation about how to use them: openedx/core/djangoapps/notifications/docs/settings.md
-NOTIFICATION_APPS_OVERRIDE = {}
-NOTIFICATION_TYPES_OVERRIDE = {}
 
 ############################# AI Translations ##############################
 
@@ -2395,33 +2402,7 @@ ENTRANCE_EXAM_MIN_SCORE_PCT = 50
 # Initialize to 'release', but read from JSON in production.py
 EDX_PLATFORM_REVISION = 'release'
 
-# .. setting_name: PROCTORING_BACKENDS
-# .. setting_description: A dictionary describing all available proctoring provider configurations.
-#     Structure:
-#         {
-#             "<provider_name>": {
-#                 "show_review_rules": <bool>,
-#                 "requires_escalation_email": <bool>,
-#                 ... additional provider-specific options ...
-#             },
-#             "<another_provider_name>": { ... }
-#             ...
-#             "DEFAULT": "<provider_name>",
-#         }
-#
-#     Keys:
-#
-#     **show_review_rules** (bool):
-#         Whether studio would show a "Review Rules" field as part of proctoring configuration.
-#         Default is True.
-#
-#     **requires_escalation_email** (bool):
-#         Providers with this flag set to True require that an escalation email address be
-#         specified in the advanced course settings. Default is False.
-# .. setting_default: {
-#        'DEFAULT': 'null',
-#        'null': {}
-#    }
+# Proctoring configuration (redirct URLs and keys shared between systems)
 PROCTORING_BACKENDS = {
     'DEFAULT': 'null',
     # The null key needs to be quoted because

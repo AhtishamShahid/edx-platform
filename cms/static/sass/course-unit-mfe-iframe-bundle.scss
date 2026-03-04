@@ -44,32 +44,6 @@ body,
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
-          display: flex;
-
-          .library-info-icon {
-            width: 32px;
-            height: 26px;
-            margin-top: 2px;
-            margin-right: 5px;
-            display: flex;
-            justify-content: center;
-            background-color: white;
-            color: $primary;
-            border: 1px solid #A9A6A4FF;
-            border-radius: 4px;
-
-            &.two-icons {
-              width: 60px;
-            }
-
-            &.sync-state {
-              &:hover {
-                background-color: $primary;
-                border-color: $primary;
-                color: white;
-              }
-            }
-          }
         }
 
         .xblock-display-name {
@@ -659,6 +633,42 @@ input.xblock-inline-title-editor {
   }
 }
 
+.lib-edit-warning-tooltipbox {
+  .tooltiptext {
+    visibility: hidden;
+    position: absolute;
+    width: 200px;
+    background-color: $black;
+    color: $white;
+    text-align: center;
+    padding: 5px;
+    border-radius: 6px;
+    z-index: 1;
+    top: 50%;
+    right: 100%;
+    margin-right: 10px;
+    transform: translateY(-50%);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .tooltiptext::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 100%;
+    transform: translateY(-50%);
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent transparent transparent $black;
+  }
+
+  &:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1;
+  }
+}
+
 .action-edit {
   .action-button-text {
     display: none;
@@ -671,6 +681,13 @@ input.xblock-inline-title-editor {
 
     .fa-pencil {
       display: none;
+    }
+
+    &.disabled-button {
+      pointer-events: all;
+      opacity: .5;
+      cursor: default;
+      border-color: $transparent
     }
 
     &::before {
