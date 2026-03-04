@@ -10,6 +10,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.sites.models import Site
 from django.core.cache import cache
 from django.core.management import BaseCommand
+from edly_features_app.utils import get_active_tenant_sites_with_catalog_urls
 
 from openedx.core.djangoapps.catalog.cache import (
     CATALOG_COURSE_PROGRAMS_CACHE_KEY_TPL,
@@ -78,17 +79,18 @@ class Command(BaseCommand):
         programs_by_type_slug = {}
         organizations = {}
 
-        sites = Site.objects.filter(domain=domain) if domain else Site.objects.all()
+        # EDLYCUSTOM: we need to filter active site and grab the catalog api url from tenant config
+        sites, domain_to_catalog_url = get_active_tenant_sites_with_catalog_urls(domain)
         for site in sites:
-            site_config = getattr(site, 'configuration', None)
-            if site_config is None or not site_config.get_value('COURSE_CATALOG_API_URL'):
+            catalog_api_url = domain_to_catalog_url[site.domain]
+            if not catalog_api_url:
                 logger.info(f'Skipping site {site.domain}. No configuration.')
                 cache.set(SITE_PROGRAM_UUIDS_CACHE_KEY_TPL.format(domain=site.domain), [], None)
                 cache.set(SITE_PATHWAY_IDS_CACHE_KEY_TPL.format(domain=site.domain), [], None)
                 continue
 
             client = get_catalog_api_client(user)
-            api_base_url = get_catalog_api_base_url(site=site)
+            api_base_url = catalog_api_url
             uuids, program_uuids_failed = self.get_site_program_uuids(client, site, api_base_url)
             new_programs, program_details_failed = self.fetch_program_details(client, uuids, api_base_url)
             new_pathways, pathways_failed = self.get_pathways(client, site, api_base_url)
@@ -154,7 +156,7 @@ class Command(BaseCommand):
         try:
             querystring = {
                 'exclude_utm': 1,
-                'status': ('active', 'retired'),
+                'status': ('active', 'retired', 'unpublished'),
                 'uuids_only': 1,
             }
             api_url = urljoin(f"{api_base_url}/", "programs/")

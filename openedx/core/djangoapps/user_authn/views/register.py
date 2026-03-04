@@ -22,11 +22,12 @@ from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.debug import sensitive_post_parameters
 from django_countries import countries
+from edly_features_app.filters import RegistrationValidationRequested
 from edx_django_utils.monitoring import set_custom_attribute
 from openedx_events.learning.data import UserData, UserPersonalData
 from openedx_events.learning.signals import STUDENT_REGISTRATION_COMPLETED
 from openedx_filters.learning.filters import StudentRegistrationRequested
-from zoneinfo import ZoneInfo
+from pytz import UTC
 from django_ratelimit.decorators import ratelimit
 from requests import HTTPError
 from rest_framework.response import Response
@@ -371,7 +372,7 @@ def _track_user_registration(user, profile, params, third_party_provider, regist
             'name': profile.name,
             # Mailchimp requires the age & yearOfBirth to be integers, we send a sane integer default if falsey.
             'age': profile.age or -1,
-            'yearOfBirth': profile.year_of_birth or datetime.datetime.now(ZoneInfo("UTC")).year,
+            'yearOfBirth': profile.year_of_birth or datetime.datetime.now(UTC).year,
             'education': profile.level_of_education_display,
             'address': profile.mailing_address,
             'gender': profile.gender_display,
@@ -530,9 +531,7 @@ def _record_utm_registration_attribution(request, user):
             # We divide by 1000 here because the javascript timestamp generated is in milliseconds not seconds.
             # PYTHON: time.time()      => 1475590280.823698
             # JS: new Date().getTime() => 1475590280823
-            created_at_datetime = datetime.datetime.fromtimestamp(
-                int(created_at_unixtime) / float(1000), tz=ZoneInfo("UTC")
-            )
+            created_at_datetime = datetime.datetime.fromtimestamp(int(created_at_unixtime) / float(1000), tz=UTC)
             UserAttribute.set_user_attribute(
                 user,
                 REGISTRATION_UTM_CREATED_AT,
@@ -595,15 +594,12 @@ class RegistrationView(APIView):
             data['username'] = get_auto_generated_username(data)
 
         try:
-            # .. filter_implemented_name: StudentRegistrationRequested
-            # .. filter_type: org.openedx.learning.student.registration.requested.v1
             data = StudentRegistrationRequested.run_filter(form_data=data)
         except StudentRegistrationRequested.PreventRegistration as exc:
             errors = {
                 "error_message": [{"user_message": str(exc)}],
             }
-            error_code = getattr(exc, "error_code", None)
-            return self._create_response(request, errors, status_code=exc.status_code, error_code=error_code)
+            return self._create_response(request, errors, status_code=exc.status_code, error_code=exc.error_code)
 
         response = self._handle_duplicate_email_username(request, data)
         if response:
@@ -921,5 +917,11 @@ class RegistrationValidationView(APIView):
         response_dict = {'validation_decisions': validation_decisions}
         if self.username_suggestions:
             response_dict['username_suggestions'] = self.username_suggestions
+
+        # EDLYCUSTOM: we need to return extra info when adding user from panel
+        response_dict, _ = RegistrationValidationRequested.run_filter(
+            response_dict=response_dict,
+            request=request,
+        )
 
         return Response(response_dict)

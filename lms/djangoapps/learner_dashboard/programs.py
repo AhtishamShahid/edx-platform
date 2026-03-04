@@ -102,7 +102,7 @@ class ProgramDetailsFragmentView(EdxFragmentView):
 
         program_data, course_data = get_program_and_course_data(site, user, program_uuid, mobile_only)
 
-        if not program_data:
+        if not program_data or program_data.get('status', '') == 'unpublished':
             raise Http404
 
         certificate_data = get_certificates(user, program_data)

@@ -19,6 +19,7 @@ import pytz
 import edx_api_doc_tools as apidocs
 from django.conf import settings
 from django.contrib.auth.models import User  # lint-amnesty, pylint: disable=imported-auth-user
+from django_countries.fields import Country
 from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
@@ -37,6 +38,8 @@ from edx_when.api import get_date_for_block
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from openedx.core.djangoapps.course_groups.cohorts import get_cohort_by_name
+from openedx_events.learning.data import UserData, UserPersonalData
+from openedx_events.learning.signals import STUDENT_REGISTRATION_COMPLETED
 from rest_framework.exceptions import MethodNotAllowed
 from rest_framework import serializers, status  # lint-amnesty, pylint: disable=wrong-import-order
 from rest_framework.permissions import IsAdminUser, IsAuthenticated, BasePermission  # lint-amnesty, pylint: disable=wrong-import-order
@@ -416,6 +419,14 @@ class RegisterAndEnrollStudents(APIView):
                 else:
                     cohort_name = None
                     course_mode = None
+                    
+                if not Country(country).name:
+                    row_errors.append({
+                        'username': username,
+                        'email': email,
+                        'response': _('Invalid country: {country}. Please enter a valid country code. e.g., US, GB').format(country=country)
+                    })
+                    continue
 
                 # Validate cohort name, and get the cohort object.  Skip if course
                 # is not cohorted.
@@ -640,6 +651,18 @@ def create_user_and_user_profile(email, username, name, country, password):
     profile.name = name
     profile.country = country
     profile.save()
+
+    STUDENT_REGISTRATION_COMPLETED.send_event(
+        user=UserData(
+            pii=UserPersonalData(
+                username=user.username,
+                email=user.email,
+                name=user.profile.name,
+            ),
+            id=user.id,
+            is_active=user.is_active,
+        ),
+    )
 
     return user
 
