@@ -287,7 +287,7 @@ if ENABLE_COURSEWARE_INDEX or ENABLE_LIBRARY_INDEX:  # noqa: F405
 # TODO: Once we have successfully upgraded to ES7, switch this back to ELASTIC_SEARCH_CONFIG.
 ELASTIC_SEARCH_CONFIG = _YAML_TOKENS.get('ELASTIC_SEARCH_CONFIG_ES7', [{}])
 
-XBLOCK_SETTINGS.setdefault("VideoBlock", {})["licensing_enabled"] = FEATURES["LICENSING"]  # noqa: F405
+XBLOCK_SETTINGS.setdefault("VideoBlock", {})["licensing_enabled"] = LICENSING  # noqa: F405
 XBLOCK_SETTINGS.setdefault("VideoBlock", {})['YOUTUBE_API_KEY'] = YOUTUBE_API_KEY  # noqa: F405
 
 ############################ OAUTH2 Provider ###################################
@@ -325,7 +325,6 @@ derive_settings(__name__)
 #   value rathering than diving into these dicts.
 ENV_TOKENS = _YAML_TOKENS
 AUTH_TOKENS = _YAML_TOKENS
-ENV_FEATURES = _YAML_TOKENS.get("FEATURES", {})
 ENV_CELERY_QUEUES = _YAML_CELERY_QUEUES
 ALTERNATE_QUEUE_ENVS = _YAML_ALTERNATE_WORKER_QUEUES
 
@@ -419,6 +418,11 @@ SPECTACULAR_SETTINGS = {
     # remove the default schema path prefix to replace it with server-specific base paths:
     'SCHEMA_PATH_PREFIX': '/api/contentstore',
     'SCHEMA_PATH_PREFIX_TRIM': '/api/contentstore',
+    # Serve the Swagger UI and ReDoc assets from drf-spectacular-sidecar rather
+    # than drf-spectacular's default unpinned jsdelivr CDN URLs.
+    'SWAGGER_UI_DIST': 'SIDECAR',
+    'SWAGGER_UI_FAVICON_HREF': 'SIDECAR',
+    'REDOC_DIST': 'SIDECAR',
     'SERVERS': [
         {'url': AUTHORING_API_URL, 'description': 'Public'},  # noqa: F405
         {'url': f'https://{CMS_BASE}', 'description': 'Local'},  # noqa: F405

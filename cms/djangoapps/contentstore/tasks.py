@@ -26,8 +26,6 @@ from django.core.files import File
 from django.test import RequestFactory
 from django.utils.text import get_valid_filename
 from edx_django_utils.monitoring import (
-    set_code_owner_attribute,
-    set_code_owner_attribute_from_module,
     set_custom_attribute,
     set_custom_attributes_for_course_key,
 )
@@ -164,7 +162,6 @@ def clone_instance(instance, field_values):
 
 
 @shared_task
-@set_code_owner_attribute
 def rerun_course(source_course_key_string, destination_course_key_string, user_id, fields=None):
     """
     Reruns a course in a new celery task.
@@ -253,7 +250,6 @@ def _parse_time(time_isoformat):
 
 
 @shared_task
-@set_code_owner_attribute
 def update_search_index(course_id, triggered_time_isoformat):
     """ Updates course search index. """
     try:
@@ -284,7 +280,6 @@ def update_search_index(course_id, triggered_time_isoformat):
 
 
 @shared_task
-@set_code_owner_attribute
 def update_special_exams_and_publish(course_key_str):
     """
     Registers special exams for a given course and calls publishing flow.
@@ -345,13 +340,10 @@ class CourseExportTask(UserTask):  # pylint: disable=abstract-method
 
 
 @shared_task(base=CourseExportTask, bind=True)
-# Note: The decorator @set_code_owner_attribute cannot be used here because the UserTaskMixin
-#   does stack inspection and can't handle additional decorators.
 def export_olx(self, user_id, course_key_string, language):
     """
     Export a course or library to an OLX .tar.gz archive and prepare it for download.
     """
-    set_code_owner_attribute_from_module(__name__)
     courselike_key = CourseKey.from_string(course_key_string)
 
     try:
@@ -553,14 +545,11 @@ def remove_course_import_working_dir(course_dir):
 
 
 @shared_task(base=CourseImportTask, bind=True)
-# Note: The decorator @set_code_owner_attribute cannot be used here because the UserTaskMixin
-#   does stack inspection and can't handle additional decorators.
 # pylint: disable=too-many-statements
 def import_olx(self, user_id, course_key_string, archive_path, archive_name, language):
     """
     Import a course or library from a provided OLX .tar.gz or .zip archive.
     """
-    set_code_owner_attribute_from_module(__name__)
     current_step = 'Unpacking'
     courselike_key = CourseKey.from_string(course_key_string)
     set_custom_attributes_for_course_key(courselike_key)
@@ -792,7 +781,6 @@ def import_olx(self, user_id, course_key_string, archive_path, archive_name, lan
 
 
 @shared_task
-@set_code_owner_attribute
 def update_all_outlines_from_modulestore_task():
     """
     Celery task that creates multiple celery tasks - one per learning_sequence course outline
@@ -819,7 +807,6 @@ def update_all_outlines_from_modulestore_task():
 
 
 @shared_task
-@set_code_owner_attribute
 def update_outline_from_modulestore_task(course_key_str: str):
     """
     Celery task that creates a learning_sequence course outline.
@@ -964,7 +951,6 @@ def copy_v1_user_roles_into_v2_library(v2_library_key, v1_library_key):
 
 
 @shared_task(time_limit=30)
-@set_code_owner_attribute
 def delete_v1_library(v1_library_key_string):
     """
     Delete a v1 library index by key string.
@@ -1024,13 +1010,10 @@ class CourseLinkCheckTask(UserTask):  # pylint: disable=abstract-method
 
 
 @shared_task(base=CourseLinkCheckTask, bind=True)
-# Note: The decorator @set_code_owner_attribute cannot be used here because the UserTaskMixin
-#   does stack inspection and can't handle additional decorators.
 def check_broken_links(self, user_id, course_key_string, language):
     """
     Checks for broken links in a course and store the results in a file.
     """
-    set_code_owner_attribute_from_module(__name__)
     return _check_broken_links(self, user_id, course_key_string, language)
 
 
@@ -1498,7 +1481,6 @@ def _write_broken_links_to_file(broken_or_locked_urls, broken_links_file):
 
 
 @shared_task
-@set_code_owner_attribute
 def handle_create_xblock_upstream_link(usage_key):
     """
     Create upstream link for a single xblock.
@@ -1526,7 +1508,6 @@ def handle_create_xblock_upstream_link(usage_key):
 
 
 @shared_task
-@set_code_owner_attribute
 def handle_update_xblock_upstream_link(usage_key):
     """
     Update upstream link for a single xblock.
@@ -1543,7 +1524,6 @@ def handle_update_xblock_upstream_link(usage_key):
 
 
 @shared_task
-@set_code_owner_attribute
 def create_or_update_upstream_links(
     course_key_str: str,
     force: bool = False,
@@ -1584,7 +1564,6 @@ def create_or_update_upstream_links(
 
 
 @shared_task
-@set_code_owner_attribute
 def handle_unlink_upstream_block(upstream_usage_key_string: str) -> None:
     """
     Handle updates needed to downstream blocks when the upstream link is severed.
@@ -1604,7 +1583,6 @@ def handle_unlink_upstream_block(upstream_usage_key_string: str) -> None:
 
 
 @shared_task
-@set_code_owner_attribute
 def handle_unlink_upstream_container(upstream_container_key_string: str) -> None:
     """
     Handle updates needed to downstream blocks when the upstream link is severed.
@@ -1661,7 +1639,6 @@ def update_course_rerun_links(
     """
     Updates course links to point to the latest re-run.
     """
-    set_code_owner_attribute_from_module(__name__)
     return _update_course_rerun_links(
         self, user_id, course_id, action, data, language
     )
@@ -2217,7 +2194,6 @@ def migrate_course_legacy_library_blocks_to_item_bank(
             leaving migrated blocks as drafts.
     """
     ensure_cms("Legacy library content references may only be executed in CMS")
-    set_code_owner_attribute_from_module(__name__)
     _cancel_old_tasks(course_key, self.status.user, [self.status.task_id])
     try:
         key = CourseKey.from_string(course_key)
