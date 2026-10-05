@@ -523,25 +523,23 @@ def course_import_working_dir(courselike_key, unique_id):
     from the course key alone, so two imports of the same course would overwrite
     each other's archive, and whichever import finished first deleted the other's
     extracted OLX mid-run.
+
+    The directory sits directly under ``GITHUB_REPO_ROOT`` rather than under a
+    per-course parent, so that no import's cleanup ever removes a directory
+    another import is about to create its own inside.
     """
     subdir = base64.urlsafe_b64encode(repr(courselike_key).encode('utf-8')).decode('utf-8')
-    return path(settings.GITHUB_REPO_ROOT) / subdir / str(unique_id)
+    return path(settings.GITHUB_REPO_ROOT) / f'{subdir}-{unique_id}'
 
 
 def remove_course_import_working_dir(course_dir):
     """
     Delete a working directory created by :func:`course_import_working_dir`.
 
-    Also drops the per-course parent directory once the last import using it is
-    gone. Both steps tolerate the directory already being missing, so that
-    cleanup never masks the error that triggered it.
+    Tolerates the directory already being missing, so that cleanup never masks
+    the error that triggered it.
     """
     shutil.rmtree(course_dir, ignore_errors=True)
-    try:
-        os.rmdir(os.path.dirname(course_dir))
-    except OSError:
-        # Still holds another import's working directory, or is already gone.
-        pass
 
 
 @shared_task(base=CourseImportTask, bind=True)

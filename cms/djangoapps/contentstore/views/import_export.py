@@ -13,6 +13,7 @@ from wsgiref.util import FileWrapper
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.core.files import File
 from django.core.files.storage import FileSystemStorage
@@ -60,6 +61,9 @@ log = logging.getLogger(__name__)
 
 # Regex to capture Content-Range header ranges.
 CONTENT_RE = re.compile(r"(?P<start>\d{1,11})-(?P<stop>\d{1,11})/(?P<end>\d{1,11})")
+
+# How long to remember a finished chunked upload, so a repeat of its last chunk is recognised.
+COMPLETED_UPLOAD_TIMEOUT = 60 * 60
 
 STATUS_FILTERS = user_tasks_settings.USER_TASKS_STATUS_FILTERS
 
@@ -128,6 +132,11 @@ def _upload_id(request, filename):
     return f'upload-{digest[:32]}'
 
 
+def _completed_upload_cache_key(courselike_key, upload_id):
+    """Cache key remembering the size of a chunked upload that has been handed to the import task."""
+    return f'contentstore.course_import.completed_upload.{courselike_key}.{upload_id}'
+
+
 def _write_chunk(request, courselike_key):  # pylint: disable=too-many-statements
     """
     Write the OLX file data chunk from the given request to the local filesystem.
@@ -137,7 +146,9 @@ def _write_chunk(request, courselike_key):  # pylint: disable=too-many-statement
     # The staging directory is private to this upload: it has to survive between chunks of the same
     # upload, but must not be shared with another author's upload or with a running import task,
     # which would delete it out from under us on its way out.
-    course_dir = course_import_working_dir(courselike_key, _upload_id(request, filename))
+    upload_id = _upload_id(request, filename)
+    course_dir = course_import_working_dir(courselike_key, upload_id)
+    completed_upload_key = _completed_upload_cache_key(courselike_key, upload_id)
     set_custom_attributes_for_course_key(courselike_key)
     current_step = 'Uploading'
 
@@ -176,17 +187,23 @@ def _write_chunk(request, courselike_key):  # pylint: disable=too-many-statement
         if is_initial_import_request:
             mode = "wb+"
             set_custom_attribute('course_import_init', True)
+            cache.delete(completed_upload_key)
         else:
             mode = "ab+"
             # Appending to fail would fail if the file doesn't exist.
-            if not temp_filepath.exists():
+            try:
+                size = os.path.getsize(temp_filepath)
+            except FileNotFoundError:
+                # The last request sometimes comes twice (see below). By then the first copy
+                # may have finished and deleted the staging file, so check whether it did.
+                if cache.get(completed_upload_key) == int(content_range['end']):
+                    return JsonResponse({'ImportStatus': 1})
                 error_message = _('Some chunks missed during file upload. Please try again')
                 _save_request_status(request, courselike_string, -1)
                 log.error(f'Course Import {courselike_key}: {error_message}')
                 monitor_import_failure(courselike_key, current_step, message=error_message)
                 return error_response(error_message, 409, 0)
 
-            size = os.path.getsize(temp_filepath)
             # Check to make sure we haven't missed a chunk
             # This shouldn't happen, even if different instances are handling
             # the same session, but it's always better to catch errors earlier.
@@ -226,7 +243,10 @@ def _write_chunk(request, courselike_key):  # pylint: disable=too-many-statement
             django_file = File(local_file)
             storage_path = course_import_export_storage.save('olx_import/' + filename, django_file)
         # The archive now lives in storage; the import task downloads it into its own
-        # working directory, so this staging copy is no longer needed.
+        # working directory, so this staging copy is no longer needed. Record the upload
+        # as finished first, so a repeat of this last chunk is still recognised once the
+        # staging file is gone.
+        cache.set(completed_upload_key, int(content_range['end']), COMPLETED_UPLOAD_TIMEOUT)
         remove_course_import_working_dir(course_dir)
         import_olx.delay(
             request.user.id, str(courselike_key), storage_path, filename, request.LANGUAGE_CODE)
